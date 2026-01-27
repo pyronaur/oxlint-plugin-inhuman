@@ -1,11 +1,15 @@
 {
-  "jsPlugins": ["./oxlint/inhuman.plugin.js"],
-  "rules": {
-    "inhuman/require-guard-clauses": "error",
-    "inhuman/no-swallowed-catch": "error",
-    "inhuman/export-code-last": "error",
-    "inhuman/no-empty-wrappers": "error",
-    "inhuman/no-switch": "error",
-    "inhuman/no-else": "error"
-  }
+	"$schema": "./node_modules/oxlint/configuration_schema.json",
+	"plugins": ["eslint", "typescript", "unicorn", "oxc", "import"],
+	"jsPlugins": ["./oxlint/inhuman.plugin.js"],
+	"ignorePatterns": ["**/node_modules/**", "**/dist/**", "**/build/**", "**/coverage/**"],
+	"rules": {
+		"inhuman/require-guard-clauses": "error",
+		"inhuman/no-swallowed-catch": "error",
+		"inhuman/export-code-last": "error",
+		"inhuman/no-empty-wrappers": "error",
+		"inhuman/no-switch": "error",
+		"inhuman/no-else": "error",
+		"oxc/no-barrel-file": "error"
+	}
 }

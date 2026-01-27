@@ -1,0 +1,4 @@
+{
+	"project": ["package.json"],
+	"ignore": ["node_modules", "dist", "build", "coverage"]
+}

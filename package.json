@@ -1,47 +1,61 @@
 {
-  "name": "oxlint-plugin-inhuman",
-  "version": "0.1.6",
-  "private": false,
-  "description": "Oxlint JS plugin for opinionated rules that steer AI and humans toward explicit, guard-clause-first, error-safe code.",
-  "type": "module",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/pyronaur/oxlint-plugin-inhuman.git"
-  },
-  "author": "pyronaur",
-  "bugs": {
-    "url": "https://github.com/pyronaur/oxlint-plugin-inhuman/issues"
-  },
-  "homepage": "https://github.com/pyronaur/oxlint-plugin-inhuman#readme",
-  "keywords": [
-    "oxlint",
-    "oxc",
-    "eslint",
-    "lint",
-    "plugin",
-    "ai",
-    "guard-clauses",
-    "error-handling"
-  ],
-  "files": [
-    "oxlint",
-    "README.md",
-    "LICENSE"
-  ],
-  "main": "./oxlint/inhuman.plugin.js",
-  "exports": {
-    ".": "./oxlint/inhuman.plugin.js",
-    "./inhuman.plugin.js": "./oxlint/inhuman.plugin.js"
-  },
-  "engines": {
-    "node": ">=18"
-  },
-  "scripts": {
-    "lint": "echo 'Run oxlint with .oxlintrc.json in your consuming project'",
-    "test": "echo 'Add RuleTester/oxlint CLI tests in your environment'"
-  },
-  "dependencies": {
-    "oxlint-plugin-no-branching": "^0.1.2"
-  }
+	"name": "oxlint-plugin-inhuman",
+	"version": "0.1.6",
+	"private": false,
+	"description": "Oxlint JS plugin for opinionated rules that steer AI and humans toward explicit, guard-clause-first, error-safe code.",
+	"type": "module",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/pyronaur/oxlint-plugin-inhuman.git"
+	},
+	"author": "pyronaur",
+	"bugs": {
+		"url": "https://github.com/pyronaur/oxlint-plugin-inhuman/issues"
+	},
+	"homepage": "https://github.com/pyronaur/oxlint-plugin-inhuman#readme",
+	"keywords": [
+		"oxlint",
+		"oxc",
+		"eslint",
+		"lint",
+		"plugin",
+		"ai",
+		"guard-clauses",
+		"error-handling"
+	],
+	"files": [
+		"oxlint",
+		"README.md",
+		"LICENSE"
+	],
+	"main": "./oxlint/inhuman.plugin.js",
+	"exports": {
+		".": "./oxlint/inhuman.plugin.js",
+		"./inhuman.plugin.js": "./oxlint/inhuman.plugin.js"
+	},
+	"engines": {
+		"node": ">=18"
+	},
+	"scripts": {
+		"lint": "npm run lint:biome:fix && npm run lint:oxlint:fix && npm run jscpd && npm run knip",
+		"lint-dry": "npm run lint:biome && npm run lint:oxlint && npm run jscpd && npm run knip",
+		"lint:biome": "biome check .",
+		"lint:oxlint": "oxlint oxlint",
+		"lint:biome:fix": "biome check --write .",
+		"lint:oxlint:fix": "oxlint --fix oxlint",
+		"jscpd": "jscpd --config .jscpd.json",
+		"knip": "knip",
+		"test": "node scripts/test-fixtures.mjs"
+	},
+	"dependencies": {
+		"oxlint-plugin-no-branching": "^0.1.2"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.3.13",
+		"eslint": "^9.39.2",
+		"jscpd": "^4.0.7",
+		"knip": "^5.82.1",
+		"oxlint": "^1.42.0"
+	}
 }
