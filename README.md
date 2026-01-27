@@ -41,6 +41,7 @@ Forbids empty or comment-only `catch` blocks, including `catch { /* ignore */ }`
 ### `inhuman/export-code-last`
 
 Requires value exports at the bottom of the file. Type-only exports are exempt and may appear anywhere.
+Local export lists like `export { b }` are not allowed; export the declaration directly instead.
 
 Options default:
 - `allowReExport: false`
@@ -74,6 +75,7 @@ Expected errors include:
 - `examples/fail-wrapper-if.js`
 - `examples/fail-swallowed-catch.js`
 - `examples/fail-exports-before-non-export.js`
+- `examples/fail-export-list.js`
 - `examples/fail-switch.js`
 - `examples/fail-else.js`
 - `examples/fail-else-if.js`
