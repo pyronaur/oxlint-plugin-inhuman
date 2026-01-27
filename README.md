@@ -22,6 +22,7 @@ Oxlint requires enabling JS plugin rules explicitly under `rules`.
     "inhuman/require-guard-clauses": "error",
     "inhuman/no-swallowed-catch": "error",
     "inhuman/export-code-last": "error",
+    "inhuman/no-empty-wrappers": "error",
     "inhuman/no-switch": "error",
     "inhuman/no-else": "error"
   }
@@ -42,6 +43,8 @@ Forbids empty or comment-only `catch` blocks, including `catch { /* ignore */ }`
 
 Requires value exports at the bottom of the file. Type-only exports are exempt and may appear anywhere.
 Local export lists like `export { b }` are not allowed; export the declaration directly instead.
+Local alias exports like `export const x = y` are also not allowed.
+Primitive `export const` values (for example strings, numbers, booleans, null, bigint, or static templates) are exempt and may appear at the top.
 
 Options default:
 - `allowReExport: false`
@@ -55,6 +58,10 @@ Optional config:
   }
 }
 ```
+
+### `inhuman/no-empty-wrappers`
+
+Forbids exported empty wrapper functions that only pass through to a single call.
 
 ### `inhuman/no-switch`
 
@@ -76,6 +83,12 @@ Expected errors include:
 - `examples/fail-swallowed-catch.js`
 - `examples/fail-exports-before-non-export.js`
 - `examples/fail-export-list.js`
+- `examples/fail-export-alias.js`
+- `examples/fail-export-alias-member.js`
+- `examples/fail-export-alias-chain.js`
+- `examples/fail-empty-wrapper-impl.ts`
+- `examples/fail-empty-wrapper-generic.ts`
+- `examples/fail-non-primitive-const-top.ts`
 - `examples/fail-switch.js`
 - `examples/fail-else.js`
 - `examples/fail-else-if.js`

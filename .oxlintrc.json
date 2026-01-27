@@ -4,6 +4,7 @@
     "inhuman/require-guard-clauses": "error",
     "inhuman/no-swallowed-catch": "error",
     "inhuman/export-code-last": "error",
+    "inhuman/no-empty-wrappers": "error",
     "inhuman/no-switch": "error",
     "inhuman/no-else": "error"
   }

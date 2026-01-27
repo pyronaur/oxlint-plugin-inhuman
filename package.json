@@ -1,6 +1,6 @@
 {
   "name": "oxlint-plugin-inhuman",
-  "version": "0.1.2",
+  "version": "0.1.5",
   "private": false,
   "description": "Oxlint JS plugin for opinionated rules that steer AI and humans toward explicit, guard-clause-first, error-safe code.",
   "type": "module",
