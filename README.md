@@ -2,7 +2,8 @@
 
 Opinionated Oxlint rules that encode pet peeves and steer AI toward explicit, safer code.
 
-This plugin also re-exposes the no-branching rules under the `inhuman/*` namespace.
+This plugin also re-exposes the no-branching rules under the `inhuman/*` namespace from
+[`oxlint-plugin-no-branching`](https://github.com/pyronaur/oxlint-plugin-no-branching).
 
 ## Install
 
@@ -12,24 +13,11 @@ npm i -D oxlint-plugin-inhuman
 
 ## Oxlint Config (Explicit)
 
+Oxlint requires enabling JS plugin rules explicitly under `rules`.
+
 ```json
 {
   "jsPlugins": ["oxlint-plugin-inhuman"],
-  "rules": {
-    "inhuman/require-guard-clauses": "error",
-    "inhuman/no-swallowed-catch": "error",
-    "inhuman/export-code-last": "error",
-    "inhuman/no-switch": "error",
-    "inhuman/no-else": "error"
-  }
-}
-```
-
-For local development in this repo:
-
-```json
-{
-  "jsPlugins": ["./oxlint/inhuman.plugin.js"],
   "rules": {
     "inhuman/require-guard-clauses": "error",
     "inhuman/no-swallowed-catch": "error",
@@ -54,6 +42,9 @@ Forbids empty or comment-only `catch` blocks, including `catch { /* ignore */ }`
 
 Requires value exports at the bottom of the file. Type-only exports are exempt and may appear anywhere.
 
+Options default:
+- `allowReExport: false`
+
 Optional config:
 
 ```json
@@ -66,11 +57,11 @@ Optional config:
 
 ### `inhuman/no-switch`
 
-Re-exported from `oxlint-plugin-no-branching`.
+Re-exported from [`oxlint-plugin-no-branching`](https://github.com/pyronaur/oxlint-plugin-no-branching).
 
 ### `inhuman/no-else`
 
-Re-exported from `oxlint-plugin-no-branching`.
+Re-exported from [`oxlint-plugin-no-branching`](https://github.com/pyronaur/oxlint-plugin-no-branching).
 
 ## Local Demo
 
