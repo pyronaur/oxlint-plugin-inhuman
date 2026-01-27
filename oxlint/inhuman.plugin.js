@@ -22,6 +22,9 @@ const NO_EXPORT_SPECIFIERS_MESSAGE =
 const NO_EXPORT_ALIAS_MESSAGE =
   "Do not export local aliases like `export const x = y`. Export the declaration directly at the bottom of the file instead.";
 
+const NO_EMPTY_WRAPPERS_MESSAGE =
+  "Do not export empty wrapper functions. Export the implementation directly instead.";
+
 function getSourceCode(context) {
   return context.sourceCode ?? (typeof context.getSourceCode === "function" ? context.getSourceCode() : null);
 }
@@ -50,6 +53,23 @@ function isExportNode(node) {
     node?.type === "ExportDefaultDeclaration" ||
     node?.type === "ExportNamedDeclaration"
   );
+}
+
+function unwrapExpression(node) {
+  let current = node;
+  // Unwrap common wrappers around call expressions.
+  while (
+    current &&
+    (current.type === "AwaitExpression" ||
+      current.type === "ChainExpression" ||
+      current.type === "ParenthesizedExpression")
+  ) {
+    current =
+      current.type === "AwaitExpression"
+        ? current.argument
+        : current.expression;
+  }
+  return current;
 }
 
 function isTypeOnlyExport(node) {
@@ -209,6 +229,89 @@ function isLocalAliasExport(node) {
   return declaration.declarations.some(
     (declarator) => isAliasLikeExpression(declarator.init),
   );
+}
+
+function isExportedFunction(node) {
+  const parent = node?.parent;
+  if (!parent) return false;
+  return (
+    parent.type === "ExportNamedDeclaration" ||
+    parent.type === "ExportDefaultDeclaration"
+  );
+}
+
+function getCallExpressionFromStatement(statement) {
+  if (!statement) return null;
+
+  if (statement.type === "ExpressionStatement") {
+    const expr = unwrapExpression(statement.expression);
+    return expr?.type === "CallExpression" ? expr : null;
+  }
+
+  if (statement.type === "ReturnStatement") {
+    const expr = unwrapExpression(statement.argument);
+    return expr?.type === "CallExpression" ? expr : null;
+  }
+
+  return null;
+}
+
+function isPassThroughWrapper(node, callExpression) {
+  const params = node.params ?? [];
+  const args = callExpression.arguments ?? [];
+
+  // Only treat plain identifier parameters (and a single rest identifier) as pass-through.
+  const paramNames = [];
+  let restName = null;
+
+  for (const param of params) {
+    if (param.type === "Identifier") {
+      paramNames.push(param.name);
+      continue;
+    }
+
+    if (param.type === "RestElement" && param.argument?.type === "Identifier") {
+      restName = param.argument.name;
+      continue;
+    }
+
+    // Destructuring or other patterns are not considered "empty wrappers".
+    return false;
+  }
+
+  if (restName != null) {
+    // Require the rest arg to be passed through as `...rest` at the end.
+    if (args.length !== paramNames.length + 1) {
+      return false;
+    }
+
+    for (let i = 0; i < paramNames.length; i += 1) {
+      const arg = args[i];
+      if (arg?.type !== "Identifier" || arg.name !== paramNames[i]) {
+        return false;
+      }
+    }
+
+    const lastArg = args[args.length - 1];
+    return (
+      lastArg?.type === "SpreadElement" &&
+      lastArg.argument?.type === "Identifier" &&
+      lastArg.argument.name === restName
+    );
+  }
+
+  if (args.length !== paramNames.length) {
+    return false;
+  }
+
+  for (let i = 0; i < paramNames.length; i += 1) {
+    const arg = args[i];
+    if (arg?.type !== "Identifier" || arg.name !== paramNames[i]) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 function blockHasOnlyComments(block, sourceCode) {
@@ -405,6 +508,59 @@ const exportsLastExceptTypesRule = {
   },
 };
 
+/** @type {import('eslint').Rule.RuleModule} */
+const noEmptyWrappersRule = {
+  meta: {
+    type: "suggestion",
+    docs: {
+      description:
+        "Disallow exported empty wrapper functions that only pass through to another call.",
+      recommended: false,
+    },
+    schema: [],
+    messages: {
+      noEmptyWrapper: NO_EMPTY_WRAPPERS_MESSAGE,
+    },
+  },
+  create(context) {
+    function checkFunctionLike(node) {
+      if (!isExportedFunction(node)) {
+        return;
+      }
+
+      const body = node.body;
+      if (!body || body.type !== "BlockStatement") {
+        return;
+      }
+
+      const statements = body.body ?? [];
+      if (statements.length !== 1) {
+        return;
+      }
+
+      const callExpression = getCallExpressionFromStatement(statements[0]);
+      if (!callExpression) {
+        return;
+      }
+
+      if (!isPassThroughWrapper(node, callExpression)) {
+        return;
+      }
+
+      context.report({
+        node,
+        messageId: "noEmptyWrapper",
+      });
+    }
+
+    return {
+      FunctionDeclaration: checkFunctionLike,
+      FunctionExpression: checkFunctionLike,
+      ArrowFunctionExpression: checkFunctionLike,
+    };
+  },
+};
+
 const plugin = {
   meta: {
     name: "inhuman",
@@ -413,6 +569,7 @@ const plugin = {
     "require-guard-clauses": requireGuardClausesRule,
     "no-swallowed-catch": noSwallowedCatchRule,
     "export-code-last": exportsLastExceptTypesRule,
+    "no-empty-wrappers": noEmptyWrappersRule,
     "no-switch": noBranchingPlugin.rules["no-switch"],
     "no-else": noBranchingPlugin.rules["no-else"],
   },
