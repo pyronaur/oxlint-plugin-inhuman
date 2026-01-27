@@ -14,7 +14,7 @@ const NO_SWALLOWED_CATCH_MESSAGE =
   "Do not swallow errors in catch blocks. Handle, log, rethrow, or explicitly justify it.";
 
 const EXPORTS_LAST_EXCEPT_TYPES_MESSAGE =
-  "Value export statements should appear at the end of the file (type-only exports are exempt).";
+  "Runtime value exports (functions, classes, and const) must appear at the end of the file. Type-only exports and primitive consts are exempt.";
 
 const NO_EXPORT_SPECIFIERS_MESSAGE =
   "Do not use `export { ... }` for local values. Export the declaration directly at the bottom of the file instead.";
