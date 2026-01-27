@@ -1,0 +1,10 @@
+{
+  "jsPlugins": ["./oxlint/inhuman.plugin.js"],
+  "rules": {
+    "inhuman/require-guard-clauses": "error",
+    "inhuman/no-swallowed-catch": "error",
+    "inhuman/export-code-last": "error",
+    "inhuman/no-switch": "error",
+    "inhuman/no-else": "error"
+  }
+}

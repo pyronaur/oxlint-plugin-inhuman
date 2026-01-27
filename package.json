@@ -1,0 +1,47 @@
+{
+  "name": "oxlint-plugin-inhuman",
+  "version": "0.1.1",
+  "private": false,
+  "description": "Oxlint JS plugin for opinionated rules that steer AI and humans toward explicit, guard-clause-first, error-safe code.",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pyronaur/oxlint-plugin-inhuman.git"
+  },
+  "author": "pyronaur",
+  "bugs": {
+    "url": "https://github.com/pyronaur/oxlint-plugin-inhuman/issues"
+  },
+  "homepage": "https://github.com/pyronaur/oxlint-plugin-inhuman#readme",
+  "keywords": [
+    "oxlint",
+    "oxc",
+    "eslint",
+    "lint",
+    "plugin",
+    "ai",
+    "guard-clauses",
+    "error-handling"
+  ],
+  "files": [
+    "oxlint",
+    "README.md",
+    "LICENSE"
+  ],
+  "main": "./oxlint/inhuman.plugin.js",
+  "exports": {
+    ".": "./oxlint/inhuman.plugin.js",
+    "./inhuman.plugin.js": "./oxlint/inhuman.plugin.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "lint": "echo 'Run oxlint with .oxlintrc.json in your consuming project'",
+    "test": "echo 'Add RuleTester/oxlint CLI tests in your environment'"
+  },
+  "dependencies": {
+    "oxlint-plugin-no-branching": "^0.1.2"
+  }
+}
