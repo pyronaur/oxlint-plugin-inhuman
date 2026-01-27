@@ -19,6 +19,9 @@ const EXPORTS_LAST_EXCEPT_TYPES_MESSAGE =
 const NO_EXPORT_SPECIFIERS_MESSAGE =
   "Do not use `export { ... }` for local values. Export the declaration directly at the bottom of the file instead.";
 
+const NO_EXPORT_ALIAS_MESSAGE =
+  "Do not export local aliases like `export const x = y`. Export the declaration directly at the bottom of the file instead.";
+
 function getSourceCode(context) {
   return context.sourceCode ?? (typeof context.getSourceCode === "function" ? context.getSourceCode() : null);
 }
@@ -67,8 +70,79 @@ function isTypeOnlyExport(node) {
   return false;
 }
 
+function isPrimitiveLiteralExpression(node) {
+  if (!node) {
+    return false;
+  }
+
+  if (node.type === "ParenthesizedExpression") {
+    return isPrimitiveLiteralExpression(node.expression);
+  }
+
+  if (node.type === "ChainExpression") {
+    return isPrimitiveLiteralExpression(node.expression);
+  }
+
+  if (node.type === "TemplateLiteral") {
+    return node.expressions.length === 0;
+  }
+
+  if (node.type === "Literal") {
+    const value = node.value;
+    return (
+      value === null ||
+      typeof value === "string" ||
+      typeof value === "number" ||
+      typeof value === "boolean" ||
+      typeof value === "bigint"
+    );
+  }
+
+  if (node.type === "UnaryExpression") {
+    const arg = node.argument;
+
+    if (node.operator === "+" || node.operator === "-" || node.operator === "~") {
+      return arg?.type === "Literal" && (typeof arg.value === "number" || typeof arg.value === "bigint");
+    }
+
+    if (node.operator === "!") {
+      return arg?.type === "Literal" && typeof arg.value === "boolean";
+    }
+  }
+
+  return false;
+}
+
+function isPrimitiveConstExport(node) {
+  if (node?.type !== "ExportNamedDeclaration") {
+    return false;
+  }
+
+  if (node.source != null) {
+    return false;
+  }
+
+  const declaration = node.declaration;
+  if (!declaration || declaration.type !== "VariableDeclaration" || declaration.kind !== "const") {
+    return false;
+  }
+
+  const declarations = declaration.declarations ?? [];
+  if (declarations.length === 0) {
+    return false;
+  }
+
+  return declarations.every((declarator) => {
+    return declarator.id?.type === "Identifier" && isPrimitiveLiteralExpression(declarator.init);
+  });
+}
+
 function isExemptExport(node, options) {
   if (isTypeOnlyExport(node)) {
+    return true;
+  }
+
+  if (isPrimitiveConstExport(node)) {
     return true;
   }
 
@@ -99,6 +173,42 @@ function isLocalNamedExportList(node) {
   }
 
   return Array.isArray(node.specifiers) && node.specifiers.length > 0;
+}
+
+function isAliasLikeExpression(node) {
+  if (!node) {
+    return false;
+  }
+
+  if (node.type === "Identifier" || node.type === "MemberExpression") {
+    return true;
+  }
+
+  if (node.type === "ChainExpression") {
+    return isAliasLikeExpression(node.expression);
+  }
+
+  if (node.type === "ParenthesizedExpression") {
+    return isAliasLikeExpression(node.expression);
+  }
+
+  return false;
+}
+
+function isLocalAliasExport(node) {
+  if (node?.type !== "ExportNamedDeclaration") {
+    return false;
+  }
+
+  const declaration = node.declaration;
+  if (!declaration || declaration.type !== "VariableDeclaration") {
+    return false;
+  }
+
+  // Treat `export const x = y` and `export const x = obj.y` as alias exports.
+  return declaration.declarations.some(
+    (declarator) => isAliasLikeExpression(declarator.init),
+  );
 }
 
 function blockHasOnlyComments(block, sourceCode) {
@@ -232,6 +342,7 @@ const exportsLastExceptTypesRule = {
     messages: {
       exportsLast: EXPORTS_LAST_EXCEPT_TYPES_MESSAGE,
       noExportSpecifiers: NO_EXPORT_SPECIFIERS_MESSAGE,
+      noExportAlias: NO_EXPORT_ALIAS_MESSAGE,
     },
   },
   create(context) {
@@ -253,6 +364,16 @@ const exportsLastExceptTypesRule = {
           });
         }
 
+        // Next, forbid alias exports like `export const x = y`.
+        for (const node of body) {
+          if (!isLocalAliasExport(node)) continue;
+
+          context.report({
+            node,
+            messageId: "noExportAlias",
+          });
+        }
+
         // Find the last non-export top-level statement.
         let lastNonExportIndex = -1;
         for (let i = body.length - 1; i >= 0; i -= 1) {
@@ -271,6 +392,7 @@ const exportsLastExceptTypesRule = {
           const node = body[i];
           if (!isExportNode(node)) continue;
           if (isLocalNamedExportList(node) && !isTypeOnlyExport(node)) continue;
+          if (isLocalAliasExport(node)) continue;
           if (isExemptExport(node, options)) continue;
 
           context.report({
