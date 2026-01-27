@@ -16,6 +16,9 @@ const NO_SWALLOWED_CATCH_MESSAGE =
 const EXPORTS_LAST_EXCEPT_TYPES_MESSAGE =
   "Value export statements should appear at the end of the file (type-only exports are exempt).";
 
+const NO_EXPORT_SPECIFIERS_MESSAGE =
+  "Do not use `export { ... }` for local values. Export the declaration directly at the bottom of the file instead.";
+
 function getSourceCode(context) {
   return context.sourceCode ?? (typeof context.getSourceCode === "function" ? context.getSourceCode() : null);
 }
@@ -80,6 +83,22 @@ function isExemptExport(node, options) {
   }
 
   return false;
+}
+
+function isLocalNamedExportList(node) {
+  if (node?.type !== "ExportNamedDeclaration") {
+    return false;
+  }
+
+  // `export { foo }` (no declaration, no source) is a local export list.
+  if (node.declaration != null) {
+    return false;
+  }
+  if (node.source != null) {
+    return false;
+  }
+
+  return Array.isArray(node.specifiers) && node.specifiers.length > 0;
 }
 
 function blockHasOnlyComments(block, sourceCode) {
@@ -212,6 +231,7 @@ const exportsLastExceptTypesRule = {
     ],
     messages: {
       exportsLast: EXPORTS_LAST_EXCEPT_TYPES_MESSAGE,
+      noExportSpecifiers: NO_EXPORT_SPECIFIERS_MESSAGE,
     },
   },
   create(context) {
@@ -221,6 +241,17 @@ const exportsLastExceptTypesRule = {
       Program(program) {
         const body = program.body ?? [];
         if (body.length === 0) return;
+
+        // First, forbid local export lists like `export { foo }`.
+        for (const node of body) {
+          if (!isLocalNamedExportList(node)) continue;
+          if (isTypeOnlyExport(node)) continue;
+
+          context.report({
+            node,
+            messageId: "noExportSpecifiers",
+          });
+        }
 
         // Find the last non-export top-level statement.
         let lastNonExportIndex = -1;
@@ -239,6 +270,7 @@ const exportsLastExceptTypesRule = {
         for (let i = 0; i < lastNonExportIndex; i += 1) {
           const node = body[i];
           if (!isExportNode(node)) continue;
+          if (isLocalNamedExportList(node) && !isTypeOnlyExport(node)) continue;
           if (isExemptExport(node, options)) continue;
 
           context.report({
