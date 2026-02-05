@@ -22,6 +22,9 @@ const NO_EXPORT_SPECIFIERS_MESSAGE =
 const NO_EXPORT_ALIAS_MESSAGE =
 	"Do not export local aliases like `export const x = y`. Export the declaration directly at the bottom of the file instead.";
 
+const NO_DEFAULT_EXPORT_IDENTIFIER_MESSAGE =
+	"Default-exported identifiers are only allowed for variables used internally. Export the declaration directly instead.";
+
 const NO_EMPTY_WRAPPERS_MESSAGE =
 	"Do not export empty wrapper functions. Export the implementation directly instead.";
 
@@ -229,6 +232,320 @@ function isLocalAliasExport(node) {
 
 	// Treat `export const x = y` and `export const x = obj.y` as alias exports.
 	return declaration.declarations.some((declarator) => isAliasLikeExpression(declarator.init));
+}
+
+function isDefaultIdentifierExport(node) {
+	if (node?.type !== "ExportDefaultDeclaration") {
+		return false;
+	}
+
+	return node.declaration?.type === "Identifier";
+}
+
+function getNodeRange(node) {
+	if (!node) return null;
+	if (Array.isArray(node.range) && node.range.length === 2) return node.range;
+	if (typeof node.start === "number" && typeof node.end === "number") {
+		return [node.start, node.end];
+	}
+	return null;
+}
+
+function isSameNodeLocation(left, right) {
+	if (left === right) return true;
+	const leftRange = getNodeRange(left);
+	const rightRange = getNodeRange(right);
+	if (!leftRange || !rightRange) return false;
+	return leftRange[0] === rightRange[0] && leftRange[1] === rightRange[1];
+}
+
+function getVisitorKeys(sourceCode) {
+	return sourceCode?.visitorKeys ?? null;
+}
+
+function collectChildNodesFromValue(value, children) {
+	if (Array.isArray(value)) {
+		for (const item of value) {
+			if (item && typeof item.type === "string") {
+				children.push(item);
+			}
+		}
+		return;
+	}
+	if (value && typeof value.type === "string") {
+		children.push(value);
+	}
+}
+
+function getChildNodes(node, visitorKeys) {
+	if (!node || typeof node.type !== "string") return [];
+	const keys = visitorKeys?.[node.type];
+	if (Array.isArray(keys) && keys.length > 0) {
+		const children = [];
+		for (const key of keys) {
+			collectChildNodesFromValue(node[key], children);
+		}
+		return children;
+	}
+
+	const children = [];
+	for (const [key, value] of Object.entries(node)) {
+		if (key === "parent") continue;
+		collectChildNodesFromValue(value, children);
+	}
+	return children;
+}
+
+function isIdentifierReference(node, parent) {
+	if (!parent) return true;
+
+	const parentType = parent.type;
+
+	if (parentType === "VariableDeclarator") {
+		return parent.init === node;
+	}
+
+	if (
+		parentType === "FunctionDeclaration" ||
+		parentType === "FunctionExpression" ||
+		parentType === "ArrowFunctionExpression"
+	) {
+		if (parent.id === node) return false;
+		if (Array.isArray(parent.params) && parent.params.includes(node)) return false;
+		return true;
+	}
+
+	if (parentType === "ClassDeclaration" || parentType === "ClassExpression") {
+		if (parent.id === node) return false;
+		return true;
+	}
+
+	if (parentType === "CatchClause") {
+		if (parent.param === node) return false;
+		return true;
+	}
+
+	if (
+		parentType === "ImportSpecifier" ||
+		parentType === "ImportDefaultSpecifier" ||
+		parentType === "ImportNamespaceSpecifier" ||
+		parentType === "ExportSpecifier"
+	) {
+		return false;
+	}
+
+	if (parentType === "ExportDefaultDeclaration") {
+		if (parent.declaration === node) return false;
+		return true;
+	}
+
+	if (parentType === "MemberExpression") {
+		if (parent.property === node && !parent.computed) return false;
+		return true;
+	}
+
+	if (parentType === "Property") {
+		const inPattern = parent.parent?.type === "ObjectPattern";
+		if (inPattern) {
+			if (parent.key === node && parent.computed) return true;
+			return false;
+		}
+		if (parent.key === node) {
+			if (parent.computed) return true;
+			if (parent.shorthand) return true;
+			return false;
+		}
+		return true;
+	}
+
+	if (parentType === "MethodDefinition") {
+		if (parent.key === node && !parent.computed) return false;
+		return true;
+	}
+
+	if (parentType === "PropertyDefinition" || parentType === "ClassProperty") {
+		if (parent.key === node && !parent.computed) return false;
+		return true;
+	}
+
+	if (
+		parentType === "LabeledStatement" ||
+		parentType === "BreakStatement" ||
+		parentType === "ContinueStatement"
+	) {
+		return false;
+	}
+
+	if (parentType === "AssignmentPattern") {
+		if (parent.left === node) return false;
+		return true;
+	}
+
+	if (
+		parentType === "RestElement" ||
+		parentType === "ArrayPattern" ||
+		parentType === "ObjectPattern"
+	) {
+		return false;
+	}
+
+	if (
+		parentType === "ForInStatement" ||
+		parentType === "ForOfStatement" ||
+		parentType === "ForStatement"
+	) {
+		if (parent.left === node) return false;
+		return true;
+	}
+
+	if (
+		parentType === "TSAsExpression" ||
+		parentType === "TSTypeAssertion" ||
+		parentType === "TSNonNullExpression" ||
+		parentType === "TSInstantiationExpression"
+	) {
+		return parent.expression === node;
+	}
+
+	if (
+		parentType === "TSTypeAnnotation" ||
+		parentType === "TSTypeReference" ||
+		parentType === "TSQualifiedName" ||
+		parentType === "TSInterfaceDeclaration" ||
+		parentType === "TSTypeAliasDeclaration" ||
+		parentType === "TSModuleDeclaration" ||
+		parentType === "TSParameterProperty" ||
+		parentType === "TSPropertySignature" ||
+		parentType === "TSTypeLiteral" ||
+		parentType === "TSUnionType" ||
+		parentType === "TSIntersectionType" ||
+		parentType === "TSLiteralType" ||
+		parentType === "TSArrayType" ||
+		parentType === "TSTypeOperator" ||
+		parentType === "TSIndexedAccessType" ||
+		parentType === "TSMappedType" ||
+		parentType === "TSFunctionType" ||
+		parentType === "TSConstructorType" ||
+		parentType === "TSImportType"
+	) {
+		return false;
+	}
+
+	return true;
+}
+
+function getTopLevelDeclarationInfo(program, name) {
+	const variableIds = [];
+	let hasVariable = false;
+	let hasFunctionOrClass = false;
+
+	for (const node of program.body ?? []) {
+		let declarationNode = node;
+
+		if (node.type === "ExportNamedDeclaration" && node.declaration) {
+			declarationNode = node.declaration;
+		}
+
+		if (declarationNode.type === "VariableDeclaration") {
+			for (const declarator of declarationNode.declarations ?? []) {
+				if (declarator.id?.type === "Identifier" && declarator.id.name === name) {
+					hasVariable = true;
+					variableIds.push(declarator.id);
+				}
+			}
+			continue;
+		}
+
+		if (
+			(declarationNode.type === "FunctionDeclaration" ||
+				declarationNode.type === "ClassDeclaration") &&
+			declarationNode.id?.name === name
+		) {
+			hasFunctionOrClass = true;
+		}
+	}
+
+	return { hasVariable, hasFunctionOrClass, variableIds };
+}
+
+function isIdentifierUsedInternally(program, name, excludedNodes, sourceCode) {
+	const visitorKeys = getVisitorKeys(sourceCode);
+	let found = false;
+	const excluded = excludedNodes ?? [];
+
+	function isExcluded(node) {
+		return excluded.some((excludedNode) => isSameNodeLocation(node, excludedNode));
+	}
+
+	function visit(node, parent) {
+		if (!node || found) return;
+
+		if (node.type === "Identifier" && node.name === name && !isExcluded(node)) {
+			if (isIdentifierReference(node, parent)) {
+				found = true;
+				return;
+			}
+		}
+
+		for (const child of getChildNodes(node, visitorKeys)) {
+			visit(child, node);
+			if (found) return;
+		}
+	}
+
+	visit(program, null);
+	return found;
+}
+
+function isAllowedDefaultIdentifierExport(node, program, sourceCode) {
+	if (!isDefaultIdentifierExport(node)) {
+		return false;
+	}
+
+	const identifier = node.declaration;
+	const name = identifier.name;
+	const scopeManager = sourceCode?.scopeManager;
+	let isVariable = false;
+	let isFunctionOrClass = false;
+	let hasInternalUse = false;
+	let declarationInfo = null;
+
+	if (scopeManager?.globalScope) {
+		const variable = scopeManager.globalScope.variables?.find((item) => item.name === name);
+		if (variable) {
+			const defs = variable.defs ?? [];
+			isVariable = defs.some((def) => def.type === "Variable");
+			isFunctionOrClass = defs.some(
+				(def) => def.type === "FunctionName" || def.type === "ClassName",
+			);
+
+			for (const reference of variable.references ?? []) {
+				if (!isSameNodeLocation(reference.identifier, identifier)) {
+					hasInternalUse = true;
+					break;
+				}
+			}
+		}
+	}
+
+	if (!isVariable && !isFunctionOrClass) {
+		declarationInfo = getTopLevelDeclarationInfo(program, name);
+		isVariable = declarationInfo.hasVariable;
+		isFunctionOrClass = declarationInfo.hasFunctionOrClass;
+	}
+
+	if (!hasInternalUse) {
+		if (!declarationInfo) {
+			declarationInfo = getTopLevelDeclarationInfo(program, name);
+		}
+		if (declarationInfo.hasVariable) {
+			const excludedNodes = [identifier, ...declarationInfo.variableIds];
+			hasInternalUse = isIdentifierUsedInternally(program, name, excludedNodes, sourceCode);
+		}
+	}
+
+	if (!isVariable || isFunctionOrClass) return false;
+	return hasInternalUse;
 }
 
 function isExportedFunction(node) {
@@ -442,15 +759,28 @@ const exportsLastExceptTypesRule = {
 			exportsLast: EXPORTS_LAST_EXCEPT_TYPES_MESSAGE,
 			noExportSpecifiers: NO_EXPORT_SPECIFIERS_MESSAGE,
 			noExportAlias: NO_EXPORT_ALIAS_MESSAGE,
+			noDefaultExportIdentifier: NO_DEFAULT_EXPORT_IDENTIFIER_MESSAGE,
 		},
 	},
 	create(context) {
 		const options = context.options?.[0] ?? {};
+		const sourceCode = getSourceCode(context);
 
 		return {
 			Program(program) {
 				const body = program.body ?? [];
 				if (body.length === 0) return;
+
+				// Forbid default exports that just reference an identifier.
+				for (const node of body) {
+					if (!isDefaultIdentifierExport(node)) continue;
+					if (isAllowedDefaultIdentifierExport(node, program, sourceCode)) continue;
+
+					context.report({
+						node,
+						messageId: "noDefaultExportIdentifier",
+					});
+				}
 
 				// First, forbid local export lists like `export { foo }`.
 				for (const node of body) {
@@ -557,7 +887,7 @@ const noEmptyWrappersRule = {
 	},
 };
 
-const plugin = {
+export default {
 	meta: {
 		name: "inhuman",
 	},
@@ -570,5 +900,3 @@ const plugin = {
 		"no-else": noBranchingPlugin.rules["no-else"],
 	},
 };
-
-export default plugin;
