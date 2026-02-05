@@ -44,6 +44,7 @@ Forbids empty or comment-only `catch` blocks, including `catch { /* ignore */ }`
 Requires value exports at the bottom of the file. Type-only exports are exempt and may appear anywhere.
 Local export lists like `export { b }` are not allowed; export the declaration directly instead.
 Local alias exports like `export const x = y` are also not allowed.
+Default exports must be on declarations; `export default foo` is only allowed when `foo` is a variable used internally.
 Primitive `export const` values (for example strings, numbers, booleans, null, bigint, or static templates) are exempt and may appear at the top.
 
 Options default:
@@ -86,6 +87,8 @@ Expected errors include:
 - `examples/fail-export-alias.js`
 - `examples/fail-export-alias-member.js`
 - `examples/fail-export-alias-chain.js`
+- `examples/fail-default-export-identifier.js`
+- `examples/fail-default-export-unused-identifier.js`
 - `examples/fail-empty-wrapper-impl.ts`
 - `examples/fail-empty-wrapper-generic.ts`
 - `examples/fail-non-primitive-const-top.ts`
