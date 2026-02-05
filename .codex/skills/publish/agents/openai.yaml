@@ -1,0 +1,4 @@
+interface:
+  display_name: "Publish Prep"
+  short_description: "Prepare repo for npm publish"
+  default_prompt: "Use $publish to prepare this repo for npm publish."
