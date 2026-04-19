@@ -46,6 +46,8 @@ Local export lists like `export { b }` are not allowed; export the declaration d
 Local alias exports like `export const x = y` are also not allowed.
 Default exports must be on declarations; `export default foo` is only allowed when `foo` is a variable used internally.
 Primitive `export const` values (for example strings, numbers, booleans, null, bigint, or static templates) are exempt and may appear at the top.
+Direct Zod schema exports (for example `export const User = z.object(...)`) are exempt and may appear at the top, including the colocated `export type User = z.infer<typeof User>` pattern.
+Direct Effect schema exports are also exempt (for example `export const User = Schema.Struct(...)` or `export const User = S.Struct(...)` from `effect/Schema`), including colocated type aliases like `export type User = Schema.Schema.Type<typeof User>`.
 
 Options default:
 - `allowReExport: false`

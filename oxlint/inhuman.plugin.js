@@ -14,13 +14,13 @@ const NO_SWALLOWED_CATCH_MESSAGE =
 	"Do not swallow errors in catch blocks. Handle, log, rethrow, or explicitly justify it.";
 
 const EXPORTS_LAST_EXCEPT_TYPES_MESSAGE =
-	"Runtime value exports (functions, classes, and const) must appear at the end of the file. Type-only exports and primitive consts are exempt.";
+	"Runtime value exports (functions, classes, and most const values) must appear at the end of the file. Type-only exports, primitive consts, and direct Zod or Effect schema exports are exempt.";
 
 const NO_EXPORT_SPECIFIERS_MESSAGE =
 	"Do not use `export { ... }` for local values. Export the declaration directly at the bottom of the file instead.";
 
 const NO_EXPORT_ALIAS_MESSAGE =
-	"Do not export local aliases like `export const x = y`. Export the declaration directly at the bottom of the file instead.";
+	"Do not export local aliases like `export const x = y`. Export the original declaration directly instead.";
 
 const NO_DEFAULT_EXPORT_IDENTIFIER_MESSAGE =
 	"Default-exported identifiers are only allowed for variables used internally. Export the declaration directly instead.";
@@ -138,22 +138,31 @@ function isPrimitiveLiteralExpression(node) {
 	return false;
 }
 
-function isPrimitiveConstExport(node) {
+function getLocalConstExportDeclarators(node) {
 	if (node?.type !== "ExportNamedDeclaration") {
-		return false;
+		return null;
 	}
 
 	if (node.source != null) {
-		return false;
+		return null;
 	}
 
 	const declaration = node.declaration;
 	if (!declaration || declaration.type !== "VariableDeclaration" || declaration.kind !== "const") {
-		return false;
+		return null;
 	}
 
 	const declarations = declaration.declarations ?? [];
 	if (declarations.length === 0) {
+		return null;
+	}
+
+	return declarations;
+}
+
+function isPrimitiveConstExport(node) {
+	const declarations = getLocalConstExportDeclarators(node);
+	if (!declarations) {
 		return false;
 	}
 
@@ -162,12 +171,108 @@ function isPrimitiveConstExport(node) {
 	});
 }
 
-function isExemptExport(node, options) {
+function getSchemaNamespaceNames(program) {
+	const names = new Set();
+
+	for (const node of program.body ?? []) {
+		if (node.type !== "ImportDeclaration") {
+			continue;
+		}
+
+		const source = node.source?.value;
+
+		for (const specifier of node.specifiers ?? []) {
+			if (source === "zod" && specifier.type === "ImportNamespaceSpecifier") {
+				names.add(specifier.local.name);
+				continue;
+			}
+
+			if (source === "effect/Schema" && specifier.type === "ImportNamespaceSpecifier") {
+				names.add(specifier.local.name);
+				continue;
+			}
+
+			if (specifier.type !== "ImportSpecifier") {
+				continue;
+			}
+
+			if (
+				source === "zod" &&
+				specifier.imported?.type === "Identifier" &&
+				specifier.imported.name === "z"
+			) {
+				names.add(specifier.local.name);
+				continue;
+			}
+
+			if (
+				source === "effect" &&
+				specifier.imported?.type === "Identifier" &&
+				specifier.imported.name === "Schema"
+			) {
+				names.add(specifier.local.name);
+			}
+		}
+	}
+
+	return names;
+}
+
+function isSchemaNamespaceExpression(node, schemaNames) {
+	if (!node || schemaNames.size === 0) {
+		return false;
+	}
+
+	if (node.type === "Identifier") {
+		return schemaNames.has(node.name);
+	}
+
+	if (node.type === "MemberExpression") {
+		return isSchemaNamespaceExpression(node.object, schemaNames);
+	}
+
+	if (node.type === "CallExpression") {
+		return isSchemaNamespaceExpression(node.callee, schemaNames);
+	}
+
+	if (
+		node.type === "ChainExpression" ||
+		node.type === "ParenthesizedExpression" ||
+		node.type === "TSAsExpression" ||
+		node.type === "TSSatisfiesExpression" ||
+		node.type === "TSNonNullExpression" ||
+		node.type === "TSTypeAssertion"
+	) {
+		return isSchemaNamespaceExpression(node.expression, schemaNames);
+	}
+
+	return false;
+}
+
+function isDirectSchemaExport(node, schemaNames) {
+	const declarations = getLocalConstExportDeclarators(node);
+	if (!declarations) {
+		return false;
+	}
+
+	return declarations.every((declarator) => {
+		return (
+			declarator.id?.type === "Identifier" &&
+			isSchemaNamespaceExpression(declarator.init, schemaNames)
+		);
+	});
+}
+
+function isExemptExport(node, options, schemaNames) {
 	if (isTypeOnlyExport(node)) {
 		return true;
 	}
 
 	if (isPrimitiveConstExport(node)) {
+		return true;
+	}
+
+	if (isDirectSchemaExport(node, schemaNames)) {
 		return true;
 	}
 
@@ -769,6 +874,7 @@ const exportsLastExceptTypesRule = {
 		return {
 			Program(program) {
 				const body = program.body ?? [];
+				const schemaNames = getSchemaNamespaceNames(program);
 				if (body.length === 0) return;
 
 				// Forbid default exports that just reference an identifier.
@@ -822,7 +928,7 @@ const exportsLastExceptTypesRule = {
 					if (!isExportNode(node)) continue;
 					if (isLocalNamedExportList(node) && !isTypeOnlyExport(node)) continue;
 					if (isLocalAliasExport(node)) continue;
-					if (isExemptExport(node, options)) continue;
+					if (isExemptExport(node, options, schemaNames)) continue;
 
 					context.report({
 						node,
