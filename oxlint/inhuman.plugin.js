@@ -26,7 +26,7 @@ const NO_DEFAULT_EXPORT_IDENTIFIER_MESSAGE =
 	"Default-exported identifiers are only allowed for variables used internally. Export the declaration directly instead.";
 
 const NO_EMPTY_WRAPPERS_MESSAGE =
-	"Do not export empty wrapper functions. Export the implementation directly instead.";
+	"Do not write empty wrapper functions. Use the implementation directly instead.";
 
 function getSourceCode(context) {
 	return (
@@ -653,12 +653,6 @@ function isAllowedDefaultIdentifierExport(node, program, sourceCode) {
 	return hasInternalUse;
 }
 
-function isExportedFunction(node) {
-	const parent = node?.parent;
-	if (!parent) return false;
-	return parent.type === "ExportNamedDeclaration" || parent.type === "ExportDefaultDeclaration";
-}
-
 function getCallExpressionFromStatement(statement) {
 	if (!statement) return null;
 
@@ -945,8 +939,7 @@ const noEmptyWrappersRule = {
 	meta: {
 		type: "suggestion",
 		docs: {
-			description:
-				"Disallow exported empty wrapper functions that only pass through to another call.",
+			description: "Disallow empty wrapper functions that only pass through to another call.",
 			recommended: false,
 		},
 		schema: [],
@@ -956,10 +949,6 @@ const noEmptyWrappersRule = {
 	},
 	create(context) {
 		function checkFunctionLike(node) {
-			if (!isExportedFunction(node)) {
-				return;
-			}
-
 			const body = node.body;
 			if (!body || body.type !== "BlockStatement") {
 				return;

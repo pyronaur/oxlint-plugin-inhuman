@@ -64,7 +64,7 @@ Optional config:
 
 ### `inhuman/no-empty-wrappers`
 
-Forbids exported empty wrapper functions that only pass through to a single call.
+Forbids empty wrapper functions that only pass through to a single call.
 
 ### `inhuman/no-switch`
 
@@ -82,18 +82,19 @@ bunx oxlint examples
 
 Expected errors include:
 
-- `examples/fail-wrapper-if.js`
-- `examples/fail-swallowed-catch.js`
-- `examples/fail-exports-before-non-export.js`
-- `examples/fail-export-list.js`
-- `examples/fail-export-alias.js`
-- `examples/fail-export-alias-member.js`
-- `examples/fail-export-alias-chain.js`
-- `examples/fail-default-export-identifier.js`
-- `examples/fail-default-export-unused-identifier.js`
-- `examples/fail-empty-wrapper-impl.ts`
-- `examples/fail-empty-wrapper-generic.ts`
-- `examples/fail-non-primitive-const-top.ts`
-- `examples/fail-switch.js`
-- `examples/fail-else.js`
-- `examples/fail-else-if.js`
+- `examples/fail/wrapper-if.js`
+- `examples/fail/swallowed-catch.js`
+- `examples/fail/exports-before-non-export.js`
+- `examples/fail/export-list.js`
+- `examples/fail/export-alias.js`
+- `examples/fail/export-alias-member.js`
+- `examples/fail/export-alias-chain.js`
+- `examples/fail/default-export-identifier.js`
+- `examples/fail/default-export-unused-identifier.js`
+- `examples/fail/empty-wrapper-impl.ts`
+- `examples/fail/empty-wrapper-generic.ts`
+- `examples/fail/empty-wrapper-local.ts`
+- `examples/fail/non-primitive-const-top.ts`
+- `examples/fail/switch.js`
+- `examples/fail/else.js`
+- `examples/fail/else-if.js`

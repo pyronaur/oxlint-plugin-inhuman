@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 
 const oxlintBin = path.resolve("node_modules/.bin/oxlint");
@@ -30,7 +30,19 @@ function runOxlint(label, targetPath, expectZeroExit) {
 	console.log(`✔ ${label}`);
 }
 
-runOxlint("Pass fixtures", "examples/pass", true);
-runOxlint("Fail fixtures", "examples/fail", false);
+function getFixturePaths(directory) {
+	return readdirSync(directory, { withFileTypes: true })
+		.filter((entry) => entry.isFile())
+		.map((entry) => path.join(directory, entry.name))
+		.sort();
+}
+
+for (const fixturePath of getFixturePaths("examples/pass")) {
+	runOxlint(`Pass fixture ${fixturePath}`, fixturePath, true);
+}
+
+for (const fixturePath of getFixturePaths("examples/fail")) {
+	runOxlint(`Fail fixture ${fixturePath}`, fixturePath, false);
+}
 
 console.log("\nFixture expectations behaved as intended.");

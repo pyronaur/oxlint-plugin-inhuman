@@ -1,5 +1,5 @@
-const cfSafeGotoImpl = () => {};
+const timeoutMs = 1000;
 
 export const cfSafeGoto = () => {
-  return cfSafeGotoImpl();
+  return timeoutMs;
 };
