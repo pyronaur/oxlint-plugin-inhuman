@@ -9,7 +9,7 @@ inspect the output, and ensure there are zero lint complaints.
 ### When To Run Linting
 
 You must follow these rules strictly:
-- Always run `make lint` (never run `npm run lint` directly). `make lint`
+- Always run `make lint` (never run `pnpm lint` directly). `make lint`
   runs auto-fix by default.
 - Use `make lint-dry` for check-only runs. This is mainly for setup and
   validation.
