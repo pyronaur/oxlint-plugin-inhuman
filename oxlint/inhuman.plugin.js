@@ -28,6 +28,23 @@ const NO_DEFAULT_EXPORT_IDENTIFIER_MESSAGE =
 const NO_EMPTY_WRAPPERS_MESSAGE =
 	"Do not write empty wrapper functions. Use the implementation directly instead.";
 
+const NO_SINGLE_USE_LOCAL_FUNCTION_MESSAGE =
+	"This local function has one return expression and is called once. Inline it at the call site or make the abstraction carry real behavior.";
+
+const TEST_SIZE_MESSAGE =
+	"This test/helper function is too large ({{lineCount}} lines). Limit is {{max}} lines.";
+
+const DEFAULT_SINGLE_USE_LOCAL_FUNCTION_OPTIONS = {
+	predicateNamePattern: "^(is|has|can|should|must|needs|will)[A-Z_]",
+};
+
+const DEFAULT_TEST_SIZE_OPTIONS = {
+	calleeLimits: {
+		describe: 800,
+	},
+	max: 100,
+};
+
 function getSourceCode(context) {
 	return (
 		context.sourceCode ??
@@ -73,6 +90,197 @@ function unwrapExpression(node) {
 		current = current.type === "AwaitExpression" ? current.argument : current.expression;
 	}
 	return current;
+}
+
+function isFunctionExpression(node) {
+	return node?.type === "ArrowFunctionExpression" || node?.type === "FunctionExpression";
+}
+
+function getStaticPropertyName(node) {
+	if (node?.type === "Identifier") {
+		return node.name;
+	}
+
+	if (node?.type === "Literal" && typeof node.value === "string") {
+		return node.value;
+	}
+
+	return null;
+}
+
+function getCalleeNameCandidates(node) {
+	if (!node) {
+		return [];
+	}
+
+	if (node.type === "Identifier") {
+		return [node.name];
+	}
+
+	if (node.type === "CallExpression") {
+		return getCalleeNameCandidates(node.callee);
+	}
+
+	if (node.type === "ChainExpression" || node.type === "ParenthesizedExpression") {
+		return getCalleeNameCandidates(node.expression);
+	}
+
+	if (node.type === "MemberExpression") {
+		const objectNames = getCalleeNameCandidates(node.object);
+		const propertyName = getStaticPropertyName(node.property);
+		if (propertyName == null) {
+			return objectNames;
+		}
+
+		const fullNames = objectNames.map((name) => `${name}.${propertyName}`);
+		return [...fullNames, ...objectNames, propertyName];
+	}
+
+	return [];
+}
+
+function exportedVariableNames(declaration) {
+	const names = [];
+
+	for (const declarator of declaration.declarations ?? []) {
+		if (declarator.id?.type === "Identifier") {
+			names.push(declarator.id.name);
+		}
+	}
+
+	return names;
+}
+
+function exportedNamesFromSpecifiers(node) {
+	const names = [];
+
+	for (const specifier of node.specifiers ?? []) {
+		if (specifier.local?.type === "Identifier") {
+			names.push(specifier.local.name);
+		}
+	}
+
+	return names;
+}
+
+function collectExportedName(node, exportedNames) {
+	if (node.declaration?.type === "FunctionDeclaration" && node.declaration.id != null) {
+		exportedNames.add(node.declaration.id.name);
+		return;
+	}
+
+	if (node.declaration?.type === "VariableDeclaration") {
+		for (const name of exportedVariableNames(node.declaration)) {
+			exportedNames.add(name);
+		}
+		return;
+	}
+
+	for (const name of exportedNamesFromSpecifiers(node)) {
+		exportedNames.add(name);
+	}
+}
+
+function singleReturnExpression(node) {
+	if (node.body != null && node.body.type !== "BlockStatement") {
+		return node.body;
+	}
+
+	if (node.body?.type !== "BlockStatement" || node.body.body.length !== 1) {
+		return null;
+	}
+
+	const statement = node.body.body[0];
+	if (statement.type !== "ReturnStatement") {
+		return null;
+	}
+
+	return statement.argument;
+}
+
+function isDirectCallReference(reference, functionName) {
+	const identifier = reference.identifier;
+	const parent = identifier.parent;
+
+	return (
+		parent?.type === "CallExpression" &&
+		parent.callee === identifier &&
+		parent.arguments.length > 0 &&
+		identifier.name === functionName
+	);
+}
+
+function singleDirectCall(variable) {
+	const readReferences = variable.references.filter((reference) => reference.isRead());
+
+	if (readReferences.length !== 1) {
+		return null;
+	}
+
+	return readReferences[0];
+}
+
+function shouldIgnoreFunctionName(name, predicateNamePattern) {
+	return predicateNamePattern !== "" && new RegExp(predicateNamePattern, "u").test(name);
+}
+
+function getInhumanSettings(context) {
+	return context.settings?.inhuman ?? {};
+}
+
+function getSingleUseLocalFunctionOptions(context) {
+	const raw = context.options?.[0] ?? {};
+	const settings = getInhumanSettings(context);
+
+	return {
+		predicateNamePattern:
+			raw.predicateNamePattern ??
+			settings.predicateNamePattern ??
+			DEFAULT_SINGLE_USE_LOCAL_FUNCTION_OPTIONS.predicateNamePattern,
+	};
+}
+
+function getTestSizeOptions(context) {
+	const raw = context.options?.[0] ?? {};
+
+	return {
+		calleeLimits: raw.calleeLimits ?? DEFAULT_TEST_SIZE_OPTIONS.calleeLimits,
+		max: raw.max ?? DEFAULT_TEST_SIZE_OPTIONS.max,
+	};
+}
+
+function getFunctionLineCount(node) {
+	if (!node.loc?.start || !node.loc?.end) {
+		return 0;
+	}
+
+	return node.loc.end.line - node.loc.start.line + 1;
+}
+
+function getCallbackCallExpression(node) {
+	const parent = node.parent;
+
+	if (parent?.type !== "CallExpression") {
+		return null;
+	}
+
+	return parent.arguments?.includes(node) ? parent : null;
+}
+
+function getTestSizeLimit(node, options) {
+	const callExpression = getCallbackCallExpression(node);
+	if (callExpression == null) {
+		return options.max;
+	}
+
+	for (const name of getCalleeNameCandidates(callExpression.callee)) {
+		const limit = options.calleeLimits[name];
+		if (typeof limit === "number") {
+			return limit;
+		}
+	}
+
+	return options.max;
 }
 
 function isTypeOnlyExport(node) {
@@ -982,6 +1190,159 @@ const noEmptyWrappersRule = {
 	},
 };
 
+/** @type {import('eslint').Rule.RuleModule} */
+const noSingleUseLocalFunctionRule = {
+	meta: {
+		type: "suggestion",
+		docs: {
+			description: "Disallow local single-expression functions that are called once.",
+			recommended: false,
+		},
+		schema: [
+			{
+				type: "object",
+				properties: {
+					predicateNamePattern: { type: "string" },
+				},
+				additionalProperties: false,
+			},
+		],
+		messages: {
+			noSingleUseLocalFunction: NO_SINGLE_USE_LOCAL_FUNCTION_MESSAGE,
+		},
+	},
+	create(context) {
+		const options = getSingleUseLocalFunctionOptions(context);
+		const candidates = [];
+		const exportedNames = new Set();
+
+		function rememberCandidate(bindingNode, id, name) {
+			if (shouldIgnoreFunctionName(name, options.predicateNamePattern)) {
+				return;
+			}
+
+			if (singleReturnExpression(bindingNode) == null) {
+				return;
+			}
+
+			candidates.push({ bindingNode, id, name });
+		}
+
+		return {
+			FunctionDeclaration(node) {
+				if (node.id == null) {
+					return;
+				}
+
+				rememberCandidate(node, node.id, node.id.name);
+			},
+
+			VariableDeclarator(node) {
+				if (node.id?.type !== "Identifier" || !isFunctionExpression(node.init)) {
+					return;
+				}
+
+				if (singleReturnExpression(node.init) == null) {
+					return;
+				}
+
+				if (shouldIgnoreFunctionName(node.id.name, options.predicateNamePattern)) {
+					return;
+				}
+
+				candidates.push({
+					bindingNode: node,
+					id: node.id,
+					name: node.id.name,
+				});
+			},
+
+			ExportNamedDeclaration(node) {
+				collectExportedName(node, exportedNames);
+			},
+
+			"Program:exit"() {
+				for (const candidate of candidates) {
+					if (exportedNames.has(candidate.name)) {
+						continue;
+					}
+
+					const variable = context.sourceCode
+						.getDeclaredVariables(candidate.bindingNode)
+						.find((declared) => declared.name === candidate.name);
+					const reference = variable == null ? null : singleDirectCall(variable);
+					if (reference == null || !isDirectCallReference(reference, candidate.name)) {
+						continue;
+					}
+
+					context.report({
+						node: candidate.id,
+						messageId: "noSingleUseLocalFunction",
+					});
+				}
+			},
+		};
+	},
+};
+
+/** @type {import('eslint').Rule.RuleModule} */
+const testSizeRule = {
+	meta: {
+		type: "suggestion",
+		docs: {
+			description:
+				"Limit test callbacks and helpers while allowing named suite containers to have larger limits.",
+			recommended: false,
+		},
+		schema: [
+			{
+				type: "object",
+				properties: {
+					calleeLimits: {
+						type: "object",
+						additionalProperties: { type: "number" },
+					},
+					max: { type: "number" },
+				},
+				additionalProperties: false,
+			},
+		],
+		messages: {
+			testSize: TEST_SIZE_MESSAGE,
+		},
+	},
+	create(context) {
+		const options = getTestSizeOptions(context);
+
+		function checkFunctionLike(node) {
+			const lineCount = getFunctionLineCount(node);
+			if (lineCount === 0) {
+				return;
+			}
+
+			const max = getTestSizeLimit(node, options);
+			if (lineCount <= max) {
+				return;
+			}
+
+			context.report({
+				node,
+				messageId: "testSize",
+				data: {
+					lineCount: String(lineCount),
+					max: String(max),
+				},
+			});
+		}
+
+		return {
+			FunctionDeclaration: checkFunctionLike,
+			FunctionExpression: checkFunctionLike,
+			ArrowFunctionExpression: checkFunctionLike,
+		};
+	},
+};
+
 export default {
 	meta: {
 		name: "inhuman",
@@ -991,6 +1352,8 @@ export default {
 		"no-swallowed-catch": noSwallowedCatchRule,
 		"export-code-last": exportsLastExceptTypesRule,
 		"no-empty-wrappers": noEmptyWrappersRule,
+		"no-single-use-local-function": noSingleUseLocalFunctionRule,
+		"test-size": testSizeRule,
 		"no-switch": noBranchingPlugin.rules["no-switch"],
 		"no-else": noBranchingPlugin.rules["no-else"],
 	},

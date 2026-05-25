@@ -3,6 +3,11 @@
 	"plugins": ["eslint", "typescript", "unicorn", "oxc", "import"],
 	"jsPlugins": ["./oxlint/inhuman.plugin.js"],
 	"ignorePatterns": ["**/node_modules/**", "**/dist/**", "**/build/**", "**/coverage/**"],
+	"settings": {
+		"inhuman": {
+			"predicateNamePattern": "^(is|has|can|should|must|needs|will|keeps)[A-Z_]"
+		}
+	},
 	"rules": {
 		"inhuman/require-guard-clauses": "error",
 		"inhuman/no-swallowed-catch": "error",
@@ -11,5 +16,31 @@
 		"inhuman/no-switch": "error",
 		"inhuman/no-else": "error",
 		"oxc/no-barrel-file": "error"
-	}
+	},
+	"overrides": [
+		{
+			"files": [
+				"examples/pass/no-single-use-local-function.js",
+				"examples/fail/no-single-use-local-function.js"
+			],
+			"rules": {
+				"inhuman/no-single-use-local-function": "error"
+			}
+		},
+		{
+			"files": ["examples/pass/test-size.js", "examples/fail/test-size.js"],
+			"rules": {
+				"inhuman/test-size": [
+					"error",
+					{
+						"max": 4,
+						"calleeLimits": {
+							"describe": 20,
+							"description": 20
+						}
+					}
+				]
+			}
+		}
+	]
 }

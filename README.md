@@ -23,6 +23,8 @@ Oxlint requires enabling JS plugin rules explicitly under `rules`.
     "inhuman/no-swallowed-catch": "error",
     "inhuman/export-code-last": "error",
     "inhuman/no-empty-wrappers": "error",
+    "inhuman/no-single-use-local-function": "error",
+    "inhuman/test-size": "error",
     "inhuman/no-switch": "error",
     "inhuman/no-else": "error"
   }
@@ -65,6 +67,72 @@ Optional config:
 ### `inhuman/no-empty-wrappers`
 
 Forbids empty wrapper functions that only pass through to a single call.
+
+### `inhuman/no-single-use-local-function`
+
+Forbids local functions with one return expression that are called once.
+Names matching `settings.inhuman.predicateNamePattern` are exempt.
+The rule-level `predicateNamePattern` option overrides the shared setting.
+
+Settings default:
+- `settings.inhuman.predicateNamePattern: "^(is|has|can|should|must|needs|will)[A-Z_]"`
+
+Shared config:
+
+```json
+{
+  "settings": {
+    "inhuman": {
+      "predicateNamePattern": "^(is|has|can|should|must|needs|will|keeps)[A-Z_]"
+    }
+  },
+  "rules": {
+    "inhuman/no-single-use-local-function": "error"
+  }
+}
+```
+
+Rule-local override:
+
+```json
+{
+  "rules": {
+    "inhuman/no-single-use-local-function": [
+      "error",
+      { "predicateNamePattern": "^(is|has|can|should)[A-Z_]" }
+    ]
+  }
+}
+```
+
+### `inhuman/test-size`
+
+Limits test callbacks and helper functions while allowing named suite containers to use larger limits.
+By default, functions are limited to 100 lines and `describe(...)` callbacks are limited to 800 lines.
+Add entries to `calleeLimits` for equivalent suite names such as `description(...)`.
+
+Options default:
+- `max: 100`
+- `calleeLimits: { "describe": 800 }`
+
+Optional config:
+
+```json
+{
+  "rules": {
+    "inhuman/test-size": [
+      "error",
+      {
+        "max": 100,
+        "calleeLimits": {
+          "describe": 800,
+          "description": 800
+        }
+      }
+    ]
+  }
+}
+```
 
 ### `inhuman/no-switch`
 
