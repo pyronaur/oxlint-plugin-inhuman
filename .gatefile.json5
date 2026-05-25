@@ -1,0 +1,51 @@
+{
+	$use: "./node_modules/.bin",
+
+	format: {
+		name: "Format JavaScript and TypeScript",
+		match: ["oxlint/**/*.js", "scripts/**/*.mjs", "examples/**/*.{ts,js}", "dprint.json"],
+		run: "pnpm format",
+	},
+
+	oxlint: {
+		name: "Lint shipped plugin source and dev scripts",
+		match: ["oxlint/**/*.js", "scripts/**/*.mjs", ".oxlintrc.json"],
+		run: {
+			label: "Oxlint",
+			cmd: "pnpm lint:oxlint:fix",
+			guidance: [
+				"Examples are fixture inputs and are intentionally exempt from standard oxlint source lint.",
+				"If fixing these lints requires weakening a rule or hiding a diagnostic, stop and report the edge case.",
+			],
+		},
+	},
+
+	duplication: {
+		name: "Check source duplication",
+		match: ["oxlint/**/*.js", "scripts/**/*.mjs", ".jscpd.json"],
+		run: "pnpm jscpd",
+	},
+
+	example_duplication: {
+		name: "Check fixture duplication",
+		match: ["examples/**/*.{ts,js}", ".jscpd.tests.json"],
+		run: "pnpm jscpd:examples",
+	},
+
+	dead_code: {
+		name: "Check shipped dead code boundary",
+		match: ["oxlint/**/*.js", "scripts/**/*.mjs", "knip.json"],
+		run: "pnpm knip",
+	},
+
+	fixtures: {
+		name: "Run oxlint fixture expectations",
+		match: [
+			"oxlint/**/*.js",
+			"scripts/test-fixtures.mjs",
+			"examples/**/*.{ts,js}",
+			".oxlintrc.json",
+		],
+		run: "pnpm test",
+	},
+}

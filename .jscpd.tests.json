@@ -1,10 +1,10 @@
 {
 	"threshold": 0,
 	"reporters": ["console"],
-	"minTokens": 40,
-	"minLines": 3,
+	"minTokens": 60,
+	"minLines": 7,
 	"formats": ["typescript", "javascript"],
-	"path": ["oxlint", "scripts"],
+	"path": ["examples"],
 	"ignore": [
 		"**/node_modules/**",
 		"**/.git/**"

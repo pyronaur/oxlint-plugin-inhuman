@@ -1,4 +1,6 @@
 {
-	"project": ["package.json"],
-	"ignore": ["node_modules", "dist", "build", "coverage"]
+	"includeEntryExports": false,
+	"entry": ["oxlint/inhuman.plugin.js!"],
+	"project": ["oxlint/**/*.js!"],
+	"ignore": ["node_modules"]
 }
