@@ -1,7 +1,7 @@
 function a() {
-  return "ok";
+	return "ok";
 }
 
 export function b() {
-  console.log(a());
+	console.log(a());
 }

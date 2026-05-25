@@ -1,7 +1,7 @@
 const api = {
-  nested: {
-    cfSafeGotoImpl: () => {},
-  },
+	nested: {
+		cfSafeGotoImpl: () => {},
+	},
 };
 
 export const cfSafeGoto = api?.nested.cfSafeGotoImpl;

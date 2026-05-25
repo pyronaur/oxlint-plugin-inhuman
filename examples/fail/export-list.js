@@ -1,9 +1,8 @@
-function a () {
-
+function a() {
 }
 
-function b () {
-  console.log(a());
+function b() {
+	console.log(a());
 }
 
 export { b };

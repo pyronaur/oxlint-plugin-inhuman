@@ -1,5 +1,5 @@
 export function renderUser(user) {
-  if (user) {
-    return user.name.toUpperCase();
-  }
+	if (user) {
+		return user.name.toUpperCase();
+	}
 }

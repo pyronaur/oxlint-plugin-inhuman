@@ -11,5 +11,7 @@ function keepsName(name) {
 }
 
 export function greet(name) {
-	return `${normalizeName(name)}:${normalizeName(name)}:${hasName(name) && keepsName(name) ? "yes" : "no"}`;
+	return `${normalizeName(name)}:${normalizeName(name)}:${
+		hasName(name) && keepsName(name) ? "yes" : "no"
+	}`;
 }

@@ -1,5 +1,5 @@
 const api = {
-  cfSafeGotoImpl: () => {},
+	cfSafeGotoImpl: () => {},
 };
 
 export const cfSafeGoto = api.cfSafeGotoImpl;

@@ -1,8 +1,8 @@
 async function doWork(assetsDir: string, dryRun: boolean): Promise<void> {
-  void assetsDir;
-  void dryRun;
+	void assetsDir;
+	void dryRun;
 }
 
 export async function ensureItemsGroup(assetsDir: string, dryRun: boolean): Promise<void> {
-  await doWork(assetsDir, dryRun);
+	await doWork(assetsDir, dryRun);
 }
