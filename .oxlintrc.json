@@ -110,16 +110,21 @@
 			}
 		},
 		{
-			"files": ["examples/pass/test-size.js", "examples/fail/test-size.js"],
+			"files": [
+				"examples/pass/max-function-size.js",
+				"examples/fail/max-function-size.js"
+			],
 			"rules": {
-				"inhuman/test-size": [
+				"inhuman/max-function-size": [
 					"error",
 					{
-						"max": 4,
-						"calleeLimits": {
-							"describe": 20,
-							"description": 20
-						}
+						"max-lines": 4,
+						"scoped": [
+							{
+								"inside": ["describe", "suite", "test", "test.describe", "description"],
+								"max-lines": 20
+							}
+						]
 					}
 				]
 			}

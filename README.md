@@ -24,7 +24,7 @@ Oxlint requires enabling JS plugin rules explicitly under `rules`.
     "inhuman/export-code-last": "error",
     "inhuman/no-empty-wrappers": "error",
     "inhuman/no-single-use-local-function": "error",
-    "inhuman/test-size": "error",
+    "inhuman/max-function-size": "error",
     "inhuman/no-switch": "error",
     "inhuman/no-else": "error"
   }
@@ -105,29 +105,31 @@ Rule-local override:
 }
 ```
 
-### `inhuman/test-size`
+### `inhuman/max-function-size`
 
-Limits test callbacks and helper functions while allowing named suite containers to use larger limits.
-By default, functions are limited to 100 lines and `describe(...)` callbacks are limited to 800 lines.
-Add entries to `calleeLimits` for equivalent suite names such as `description(...)`.
+Limits functions while allowing named callback containers to use larger limits.
+By default, functions are limited to 100 lines and common test suite containers are limited to 800 lines.
+Use `scoped` entries to override the limit for functions inside named calls or functions.
 
 Options default:
-- `max: 100`
-- `calleeLimits: { "describe": 800 }`
+- `max-lines: 100`
+- `scoped: [{ "inside": ["describe", "suite", "test", "test.describe"], "max-lines": 800 }]`
 
 Optional config:
 
 ```json
 {
   "rules": {
-    "inhuman/test-size": [
+    "inhuman/max-function-size": [
       "error",
       {
-        "max": 100,
-        "calleeLimits": {
-          "describe": 800,
-          "description": 800
-        }
+        "max-lines": 100,
+        "scoped": [
+          {
+            "inside": ["describe", "suite", "test", "test.describe"],
+            "max-lines": 800
+          }
+        ]
       }
     ]
   }

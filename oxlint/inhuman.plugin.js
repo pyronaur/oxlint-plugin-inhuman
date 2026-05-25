@@ -7,11 +7,11 @@
 
 import noBranchingPlugin from "oxlint-plugin-no-branching";
 import { exportCodeLastRule } from "./rules/export-code-last.js";
+import { maxFunctionSizeRule } from "./rules/max-function-size.js";
 import { noEmptyWrappersRule } from "./rules/no-empty-wrappers.js";
 import { noSingleUseLocalFunctionRule } from "./rules/no-single-use-local-function.js";
 import { noSwallowedCatchRule } from "./rules/no-swallowed-catch.js";
 import { requireGuardClausesRule } from "./rules/require-guard-clauses.js";
-import { testSizeRule } from "./rules/test-size.js";
 
 export default {
 	meta: {
@@ -23,7 +23,7 @@ export default {
 		"export-code-last": exportCodeLastRule,
 		"no-empty-wrappers": noEmptyWrappersRule,
 		"no-single-use-local-function": noSingleUseLocalFunctionRule,
-		"test-size": testSizeRule,
+		"max-function-size": maxFunctionSizeRule,
 		"no-switch": noBranchingPlugin.rules["no-switch"],
 		"no-else": noBranchingPlugin.rules["no-else"],
 	},

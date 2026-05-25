@@ -13,3 +13,9 @@ description("custom suite names", () => {
 		expect(Boolean("value")).toBe(true);
 	});
 });
+
+test.describe("framework suite names", () => {
+	test("uses default suite exceptions", () => {
+		expect(Number("1")).toBe(1);
+	});
+});
