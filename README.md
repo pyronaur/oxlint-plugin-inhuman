@@ -68,6 +68,7 @@ Optional config:
 ### `inhuman/no-empty-wrappers`
 
 Forbids empty wrapper functions that only pass through to a single call.
+Also forbids hiding the pass-through call behind a temporary variable and immediately returning it.
 
 ### `inhuman/no-local-property-alias`
 

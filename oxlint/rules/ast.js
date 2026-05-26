@@ -20,13 +20,25 @@ export function getSourceCode(context) {
 export function unwrapExpression(node) {
 	let current = node;
 
-	while (
-		current
-		&& (current.type === "AwaitExpression"
-			|| current.type === "ChainExpression"
-			|| current.type === "ParenthesizedExpression")
-	) {
-		current = current.type === "AwaitExpression" ? current.argument : current.expression;
+	while (current != null) {
+		if (current.type === "AwaitExpression") {
+			current = current.argument;
+			continue;
+		}
+
+		if (
+			current.type === "ChainExpression"
+			|| current.type === "ParenthesizedExpression"
+			|| current.type === "TSAsExpression"
+			|| current.type === "TSNonNullExpression"
+			|| current.type === "TSSatisfiesExpression"
+			|| current.type === "TSTypeAssertion"
+		) {
+			current = current.expression;
+			continue;
+		}
+
+		break;
 	}
 
 	return current;

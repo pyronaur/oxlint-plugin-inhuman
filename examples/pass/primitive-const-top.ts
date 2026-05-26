@@ -9,5 +9,5 @@ function compute(value: string) {
 
 export function format(value: string) {
 	const trimmed = compute(value);
-	return trimmed;
+	return trimmed.toUpperCase();
 }

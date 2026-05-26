@@ -1,21 +1,107 @@
 import { createFunctionLikeVisitors, unwrapExpression } from "./ast.js";
 
 const NO_EMPTY_WRAPPERS_MESSAGE =
-	"Do not write empty wrapper functions. Use the implementation directly instead.";
+	"Do not write empty wrapper functions. Use the implementation directly or add real behavior.";
+
+function getCallExpression(value) {
+	const expr = unwrapExpression(value);
+	return expr?.type === "CallExpression" ? expr : null;
+}
+
+function getIdentifierExpression(value) {
+	const expr = unwrapExpression(value);
+	return expr?.type === "Identifier" ? expr : null;
+}
 
 function getCallExpressionFromStatement(statement) {
-	if (!statement) {
+	if (statement == null) {
 		return null;
 	}
 
 	if (statement.type === "ExpressionStatement") {
-		const expr = unwrapExpression(statement.expression);
-		return expr?.type === "CallExpression" ? expr : null;
+		return getCallExpression(statement.expression);
 	}
 
 	if (statement.type === "ReturnStatement") {
-		const expr = unwrapExpression(statement.argument);
-		return expr?.type === "CallExpression" ? expr : null;
+		return getCallExpression(statement.argument);
+	}
+
+	return null;
+}
+
+function getSingleDeclarator(statement) {
+	if (statement?.type !== "VariableDeclaration" || statement.declarations.length !== 1) {
+		return null;
+	}
+
+	return statement.declarations[0];
+}
+
+function getReturnedName(statement) {
+	if (statement?.type !== "ReturnStatement") {
+		return null;
+	}
+
+	return getIdentifierExpression(statement.argument)?.name ?? null;
+}
+
+function getReturnedDeclarator(declaration, returnStatement) {
+	const declarator = getSingleDeclarator(declaration);
+	const returnedName = getReturnedName(returnStatement);
+	if (declarator?.id?.type !== "Identifier" || returnedName == null) {
+		return null;
+	}
+
+	return declarator.id.name === returnedName ? declarator : null;
+}
+
+function getAssignmentExpression(statement) {
+	const expression = unwrapExpression(statement?.expression);
+	if (expression?.type !== "AssignmentExpression" || expression.operator !== "=") {
+		return null;
+	}
+
+	return expression;
+}
+
+function getTemporaryReturnCallExpression(statements) {
+	const declarator = getReturnedDeclarator(statements[0], statements[1]);
+	if (declarator == null) {
+		return null;
+	}
+
+	return getCallExpression(declarator.init);
+}
+
+function getAssignedReturnCallExpression(statements) {
+	const declarator = getReturnedDeclarator(statements[0], statements[2]);
+	if (declarator == null || declarator.init != null) {
+		return null;
+	}
+
+	const assignment = getAssignmentExpression(statements[1]);
+	if (assignment == null) {
+		return null;
+	}
+
+	if (assignment.left?.type !== "Identifier" || assignment.left.name !== declarator.id.name) {
+		return null;
+	}
+
+	return getCallExpression(assignment.right);
+}
+
+function getWrapperCallExpression(statements) {
+	if (statements.length === 1) {
+		return getCallExpressionFromStatement(statements[0]);
+	}
+
+	if (statements.length === 2) {
+		return getTemporaryReturnCallExpression(statements);
+	}
+
+	if (statements.length === 3) {
+		return getAssignedReturnCallExpression(statements);
 	}
 
 	return null;
@@ -86,11 +172,7 @@ function isPassThroughWrapper(node, callExpression) {
 
 function checkFunctionLike(context, node) {
 	const statements = node.body?.type === "BlockStatement" ? node.body.body ?? [] : [];
-	if (statements.length !== 1) {
-		return;
-	}
-
-	const callExpression = getCallExpressionFromStatement(statements[0]);
+	const callExpression = getWrapperCallExpression(statements);
 	if (!callExpression || !isPassThroughWrapper(node, callExpression)) {
 		return;
 	}
