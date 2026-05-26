@@ -1,4 +1,4 @@
-function getStaticPropertyName(node) {
+export function getStaticPropertyName(node) {
 	if (node?.type === "Identifier") {
 		return node.name;
 	}

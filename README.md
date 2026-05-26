@@ -23,6 +23,7 @@ Oxlint requires enabling JS plugin rules explicitly under `rules`.
     "inhuman/no-swallowed-catch": "error",
     "inhuman/export-code-last": "error",
     "inhuman/no-empty-wrappers": "error",
+    "inhuman/no-local-property-alias": "error",
     "inhuman/no-single-use-local-function": "error",
     "inhuman/max-function-size": "error",
     "inhuman/no-switch": "error",
@@ -67,6 +68,29 @@ Optional config:
 ### `inhuman/no-empty-wrappers`
 
 Forbids empty wrapper functions that only pass through to a single call.
+
+### `inhuman/no-local-property-alias`
+
+Forbids local aliases for property reads like `const fooBar = Foo.bar`.
+Names that communicate snapshot or boundary intent are allowed by `allow-name-pattern`.
+
+Options default:
+- `allow-name-pattern: "(^|_)(original|snapshot|initial|previous|cached|bound)($|[A-Z_])|(Original|Snapshot|Initial|Previous|Cached|Bound)$"`
+
+Optional config:
+
+```json
+{
+  "rules": {
+    "inhuman/no-local-property-alias": [
+      "error",
+      {
+        "allow-name-pattern": "(Original|Snapshot|Initial|Cached|Bound)$"
+      }
+    ]
+  }
+}
+```
 
 ### `inhuman/no-single-use-local-function`
 

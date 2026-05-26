@@ -33,12 +33,11 @@ function checkFunctionLike(context, node) {
 		return;
 	}
 
-	const statements = body.body;
-	if (statements.length !== 1) {
+	if (body.body.length !== 1) {
 		return;
 	}
 
-	const onlyStatement = statements[0];
+	const onlyStatement = body.body[0];
 	if (onlyStatement.type !== "IfStatement") {
 		return;
 	}

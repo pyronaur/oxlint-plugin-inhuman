@@ -46,6 +46,7 @@
 				"inhuman/no-swallowed-catch": "error",
 				"inhuman/export-code-last": "error",
 				"inhuman/no-empty-wrappers": "error",
+				"inhuman/no-local-property-alias": "error",
 				"inhuman/no-switch": "error",
 				"inhuman/no-else": "error",
 				"oxc/no-barrel-file": "error",
@@ -107,6 +108,15 @@
 			],
 			"rules": {
 				"inhuman/no-single-use-local-function": "error"
+			}
+		},
+		{
+			"files": [
+				"examples/pass/no-local-property-alias.js",
+				"examples/fail/no-local-property-alias.js"
+			],
+			"rules": {
+				"inhuman/no-local-property-alias": "error"
 			}
 		},
 		{

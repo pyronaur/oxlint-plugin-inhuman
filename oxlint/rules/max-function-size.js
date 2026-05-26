@@ -57,16 +57,14 @@ function getCallNames(node, child) {
 function getAncestorNames(node) {
 	const names = [];
 	let child = node;
-	let ancestor = node.parent;
 
-	while (ancestor != null) {
-		names.push(...getCallNames(ancestor, child));
-		if (!isFunctionInitializer(ancestor, child)) {
-			names.push(...getFunctionName(ancestor));
+	while (child.parent != null) {
+		names.push(...getCallNames(child.parent, child));
+		if (!isFunctionInitializer(child.parent, child)) {
+			names.push(...getFunctionName(child.parent));
 		}
 
-		child = ancestor;
-		ancestor = ancestor.parent;
+		child = child.parent;
 	}
 
 	return names;

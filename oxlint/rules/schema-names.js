@@ -58,9 +58,8 @@ export function getSchemaNamespaceNames(program) {
 			continue;
 		}
 
-		const source = node.source?.value;
 		for (const specifier of node.specifiers ?? []) {
-			const name = schemaSpecifierName(source, specifier);
+			const name = schemaSpecifierName(node.source?.value, specifier);
 			if (name != null) {
 				names.add(name);
 			}

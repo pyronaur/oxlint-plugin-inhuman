@@ -36,13 +36,18 @@ function isNumericUnaryExpression(node) {
 		return false;
 	}
 
-	const arg = node.argument;
-	return arg?.type === "Literal" && primitiveLiteralTypes.has(typeof arg.value);
+	return (
+		node.argument?.type === "Literal"
+		&& primitiveLiteralTypes.has(typeof node.argument.value)
+	);
 }
 
 function isBooleanUnaryExpression(node) {
-	const arg = node.argument;
-	return node.operator === "!" && arg?.type === "Literal" && typeof arg.value === "boolean";
+	return (
+		node.operator === "!"
+		&& node.argument?.type === "Literal"
+		&& typeof node.argument.value === "boolean"
+	);
 }
 
 function isPrimitiveLiteralExpression(node) {

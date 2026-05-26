@@ -332,15 +332,20 @@ export function isAllowedDefaultIdentifierExport(node, program, context) {
 	}
 
 	const sourceCode = getSourceCode(context);
-	const identifier = node.declaration;
-	const name = identifier.name;
+	const name = node.declaration.name;
 	const declarationInfo = getTopLevelDeclarationInfo(program, name);
-	const scopeInfo = globalDefaultExportInfo(sourceCode?.scopeManager, name, identifier);
+	const scopeInfo = globalDefaultExportInfo(sourceCode?.scopeManager, name, node.declaration);
 	const isVariable = declarationInfo.hasVariable || scopeInfo?.isVariable === true;
 	const isFunctionOrClass = declarationInfo.hasFunctionOrClass
 		|| scopeInfo?.isFunctionOrClass === true;
 	const hasInternalUse = scopeInfo?.hasInternalUse
-		?? hasVariableUse({ declarationInfo, identifier, name, program, sourceCode });
+		?? hasVariableUse({
+			declarationInfo,
+			identifier: node.declaration,
+			name,
+			program,
+			sourceCode,
+		});
 
 	return isVariable && !isFunctionOrClass && hasInternalUse;
 }
