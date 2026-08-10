@@ -26,6 +26,7 @@ Oxlint requires enabling JS plugin rules explicitly under `rules`.
     "inhuman/no-empty-wrappers": "error",
     "inhuman/no-local-property-alias": "error",
     "inhuman/no-manual-validation": "error",
+    "inhuman/no-shell-polling-loops": "error",
     "inhuman/no-single-use-local-function": "error",
     "inhuman/max-function-size": "error",
     "inhuman/no-switch": "error",
@@ -112,6 +113,18 @@ The diagnostic does not prescribe a schema library. It asks whether the project'
 schema or validation package should own the validation and inferred type instead.
 
 Ordinary runtime control flow and predicates over already-typed domain inputs are allowed.
+
+### `inhuman/no-shell-polling-loops`
+
+Forbids static shell-source string and template literals containing a `while` or `until` loop
+that repeatedly invokes `sleep`. Repeated shell `sleep` commands churn child processes and can
+leak them when a fixture is cancelled.
+
+Prefer an event-driven wait. When a test only needs one cancellable blocker, replace the shell
+with the blocking process once, for example `exec sleep 3600`.
+
+The rule recognizes standalone shell-loop literals and scripts with a shell shebang. It does not
+inspect JavaScript loop syntax, comments, or prose that merely mentions a shell loop.
 
 ### `inhuman/no-single-use-local-function`
 

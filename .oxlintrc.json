@@ -145,6 +145,15 @@
 		},
 		{
 			"files": [
+				"examples/pass/no-shell-polling-loops.js",
+				"examples/fail/no-shell-polling-loops.js"
+			],
+			"rules": {
+				"inhuman/no-shell-polling-loops": "error"
+			}
+		},
+		{
+			"files": [
 				"examples/pass/max-function-size.js",
 				"examples/fail/max-function-size.js"
 			],
