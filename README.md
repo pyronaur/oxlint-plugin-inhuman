@@ -24,6 +24,7 @@ Oxlint requires enabling JS plugin rules explicitly under `rules`.
     "inhuman/export-code-last": "error",
     "inhuman/no-empty-wrappers": "error",
     "inhuman/no-local-property-alias": "error",
+    "inhuman/no-manual-validation": "error",
     "inhuman/no-single-use-local-function": "error",
     "inhuman/max-function-size": "error",
     "inhuman/no-switch": "error",
@@ -92,6 +93,17 @@ Optional config:
   }
 }
 ```
+
+### `inhuman/no-manual-validation`
+
+Forbids hand-written runtime validators and primitive parsers that establish validity through
+checks such as `typeof`, `Array.isArray`, numeric conversion, range checks, or throwing on invalid
+input. The rule reports the containing function once rather than reporting each individual check.
+
+The diagnostic does not prescribe a schema library. It asks whether the project's established
+schema or validation package should own the validation and inferred type instead.
+
+Ordinary runtime control flow and predicates over already-typed domain inputs are allowed.
 
 ### `inhuman/no-single-use-local-function`
 

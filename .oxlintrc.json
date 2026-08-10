@@ -121,6 +121,17 @@
 		},
 		{
 			"files": [
+				"examples/pass/no-manual-validation.ts",
+				"examples/fail/no-manual-validation-assertion.ts",
+				"examples/fail/no-manual-validation-predicate.ts",
+				"examples/fail/no-manual-validation-scalar-parser.ts"
+			],
+			"rules": {
+				"inhuman/no-manual-validation": "error"
+			}
+		},
+		{
+			"files": [
 				"examples/pass/max-function-size.js",
 				"examples/fail/max-function-size.js"
 			],
