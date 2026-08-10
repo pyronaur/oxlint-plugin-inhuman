@@ -1,3 +1,29 @@
+function isFunctionLike(node) {
+	return node?.type === "FunctionDeclaration" || isFunctionExpression(node);
+}
+
+function walkChild(child, state, visit) {
+	const values = Array.isArray(child) ? child : [child];
+	for (const value of values) {
+		walkNode(value, state, visit);
+	}
+}
+
+function walkNode(node, state, visit) {
+	if (node == null || typeof node.type !== "string") {
+		return;
+	}
+
+	if (node !== state.root && isFunctionLike(node)) {
+		return;
+	}
+
+	visit(node);
+	for (const key of state.visitorKeys[node.type] ?? []) {
+		walkChild(node[key], state, visit);
+	}
+}
+
 export function getStaticPropertyName(node) {
 	if (node?.type === "Identifier") {
 		return node.name;
@@ -46,6 +72,10 @@ export function unwrapExpression(node) {
 
 export function isFunctionExpression(node) {
 	return node?.type === "ArrowFunctionExpression" || node?.type === "FunctionExpression";
+}
+
+export function walkWithoutNestedFunctions(node, visitorKeys, visit) {
+	walkNode(node, { root: node, visitorKeys }, visit);
 }
 
 export function getCalleeNameCandidates(node) {

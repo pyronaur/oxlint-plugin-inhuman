@@ -8,6 +8,7 @@
 import noBranchingPlugin from "oxlint-plugin-no-branching";
 import { exportCodeLastRule } from "./rules/export-code-last.js";
 import { maxFunctionSizeRule } from "./rules/max-function-size.js";
+import { noCaughtTypeboxValidationRule } from "./rules/no-caught-typebox-validation.js";
 import { noEmptyWrappersRule } from "./rules/no-empty-wrappers.js";
 import { noLocalPropertyAliasRule } from "./rules/no-local-property-alias.js";
 import { noManualValidationRule } from "./rules/no-manual-validation.js";
@@ -23,6 +24,7 @@ export default {
 		"require-guard-clauses": requireGuardClausesRule,
 		"no-swallowed-catch": noSwallowedCatchRule,
 		"export-code-last": exportCodeLastRule,
+		"no-caught-typebox-validation": noCaughtTypeboxValidationRule,
 		"no-empty-wrappers": noEmptyWrappersRule,
 		"no-local-property-alias": noLocalPropertyAliasRule,
 		"no-manual-validation": noManualValidationRule,

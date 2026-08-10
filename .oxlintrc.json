@@ -132,6 +132,19 @@
 		},
 		{
 			"files": [
+				"examples/pass/no-caught-typebox-validation.ts",
+				"examples/fail/no-caught-typebox-validation-alias.ts",
+				"examples/fail/no-caught-typebox-validation-cause.ts",
+				"examples/fail/no-caught-typebox-validation-direct.ts",
+				"examples/fail/no-caught-typebox-validation-namespace.ts",
+				"examples/fail/no-caught-typebox-validation-nested-expression.ts"
+			],
+			"rules": {
+				"inhuman/no-caught-typebox-validation": "error"
+			}
+		},
+		{
+			"files": [
 				"examples/pass/max-function-size.js",
 				"examples/fail/max-function-size.js"
 			],

@@ -3,6 +3,7 @@ import {
 	getCalleeNameCandidates,
 	getSourceCode,
 	unwrapExpression,
+	walkWithoutNestedFunctions,
 } from "./ast.js";
 
 const NO_MANUAL_VALIDATION_MESSAGE =
@@ -56,38 +57,6 @@ const COMPARISON_OPERATORS = new Set([
 	"instanceof",
 ]);
 
-function walkChild(child, state, visit) {
-	const values = Array.isArray(child) ? child : [child];
-	for (const value of values) {
-		walkNode(value, state, visit);
-	}
-}
-
-function walkNode(node, state, visit) {
-	if (node == null || typeof node.type !== "string") {
-		return;
-	}
-
-	if (node !== state.root && isFunctionLike(node)) {
-		return;
-	}
-
-	visit(node);
-	for (const key of state.visitorKeys[node.type] ?? []) {
-		walkChild(node[key], state, visit);
-	}
-}
-
-function walkRoot(node, visitorKeys, visit) {
-	walkNode(node, { root: node, visitorKeys }, visit);
-}
-
-function isFunctionLike(node) {
-	return node.type === "ArrowFunctionExpression"
-		|| node.type === "FunctionDeclaration"
-		|| node.type === "FunctionExpression";
-}
-
 function getTypeAnnotation(node) {
 	if (node?.type === "Identifier") {
 		return node.typeAnnotation?.typeAnnotation ?? null;
@@ -122,7 +91,7 @@ function getBroadInputNames(node) {
 
 function nodeReferencesNames(node, names, visitorKeys) {
 	let found = false;
-	walkRoot(node, visitorKeys, (current) => {
+	walkWithoutNestedFunctions(node, visitorKeys, (current) => {
 		if (current.type !== "Identifier" || !names.has(current.name)) {
 			return;
 		}
@@ -135,7 +104,7 @@ function nodeReferencesNames(node, names, visitorKeys) {
 function collectDerivedNames(body, inputNames, visitorKeys) {
 	const names = new Set(inputNames);
 	const declarators = [];
-	walkRoot(body, visitorKeys, (node) => {
+	walkWithoutNestedFunctions(body, visitorKeys, (node) => {
 		if (node.type !== "VariableDeclarator" || node.id?.type !== "Identifier" || node.init == null) {
 			return;
 		}
@@ -197,7 +166,7 @@ function isValidationOperation(node, evidence) {
 
 function bodyHasValidation(body, evidence) {
 	let found = false;
-	walkRoot(body, evidence.visitorKeys, (node) => {
+	walkWithoutNestedFunctions(body, evidence.visitorKeys, (node) => {
 		if (!isValidationOperation(node, evidence)) {
 			return;
 		}
@@ -222,7 +191,7 @@ function isFailureReturn(node) {
 
 function getReturnEvidence(body, names, visitorKeys) {
 	const evidence = { rejects: false, succeeds: false };
-	walkRoot(body, visitorKeys, (node) => {
+	walkWithoutNestedFunctions(body, visitorKeys, (node) => {
 		if (node.type === "ThrowStatement") {
 			evidence.rejects = true;
 		}
@@ -245,7 +214,7 @@ function getReturnEvidence(body, names, visitorKeys) {
 
 function hasConversion(body, names, visitorKeys) {
 	let found = false;
-	walkRoot(body, visitorKeys, (node) => {
+	walkWithoutNestedFunctions(body, visitorKeys, (node) => {
 		const expression = unwrapExpression(node);
 		const isDateConstruction = expression?.type === "NewExpression"
 			&& getCalleeNameCandidates(expression.callee).includes("Date");

@@ -22,6 +22,7 @@ Oxlint requires enabling JS plugin rules explicitly under `rules`.
     "inhuman/require-guard-clauses": "error",
     "inhuman/no-swallowed-catch": "error",
     "inhuman/export-code-last": "error",
+    "inhuman/no-caught-typebox-validation": "error",
     "inhuman/no-empty-wrappers": "error",
     "inhuman/no-local-property-alias": "error",
     "inhuman/no-manual-validation": "error",
@@ -65,6 +66,13 @@ Optional config:
   }
 }
 ```
+
+### `inhuman/no-caught-typebox-validation`
+
+Forbids `try`/`catch` around `Parse` or `Decode` imported from `typebox/value`, including
+aliased and namespace imports. Expected validation failures should be expressed through TypeBox
+schemas or refinements so structured TypeBox errors can propagate. Operational catches unrelated
+to TypeBox validation are allowed.
 
 ### `inhuman/no-empty-wrappers`
 
