@@ -9,10 +9,6 @@ inspect the output, and ensure there are zero lint complaints.
 ### When To Run Linting
 
 You must follow these rules strictly:
-- Always run `make lint` (never run `pnpm lint` directly). `make lint`
-  runs auto-fix by default.
-- Use `make lint-dry` for check-only runs. This is mainly for setup and
-  validation.
 - Run linting only after source code changes that affect runtime behavior
   (for example, changes to `.ts`, `.tsx`, `.js`, or similar code files).
 - Do not run linting after changes limited to JSON, Markdown, shell commands,
