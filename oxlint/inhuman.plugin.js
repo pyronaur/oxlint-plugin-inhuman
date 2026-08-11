@@ -10,6 +10,7 @@ import { exportCodeLastRule } from "./rules/export-code-last.js";
 import { maxFunctionSizeRule } from "./rules/max-function-size.js";
 import { noCaughtTypeboxValidationRule } from "./rules/no-caught-typebox-validation.js";
 import { noEmptyWrappersRule } from "./rules/no-empty-wrappers.js";
+import { noLiteralBooleanCheckRule } from "./rules/no-literal-boolean-check.js";
 import { noLocalPropertyAliasRule } from "./rules/no-local-property-alias.js";
 import { noManualValidationRule } from "./rules/no-manual-validation.js";
 import { noNonvalidatingDecodeRule } from "./rules/no-nonvalidating-decode.js";
@@ -32,6 +33,7 @@ export default {
 		"no-local-property-alias": noLocalPropertyAliasRule,
 		"no-manual-validation": noManualValidationRule,
 		"no-nonvalidating-decode": noNonvalidatingDecodeRule,
+		"no-literal-boolean-check": noLiteralBooleanCheckRule,
 		"no-shell-polling-loops": noShellPollingLoopsRule,
 		"no-single-use-local-function": noSingleUseLocalFunctionRule,
 		"max-function-size": maxFunctionSizeRule,

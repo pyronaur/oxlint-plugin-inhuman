@@ -155,6 +155,15 @@
 		},
 		{
 			"files": [
+				"examples/pass/no-literal-boolean-check.ts",
+				"examples/fail/no-literal-boolean-check.ts"
+			],
+			"rules": {
+				"inhuman/no-literal-boolean-check": "error"
+			}
+		},
+		{
+			"files": [
 				"examples/pass/no-validation-in-codec.ts",
 				"examples/fail/no-validation-in-codec.ts"
 			],

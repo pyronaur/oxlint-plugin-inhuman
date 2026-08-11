@@ -27,6 +27,7 @@ Oxlint requires enabling JS plugin rules explicitly under `rules`.
     "inhuman/no-local-property-alias": "error",
     "inhuman/no-manual-validation": "error",
     "inhuman/no-nonvalidating-decode": "error",
+    "inhuman/no-literal-boolean-check": "error",
     "inhuman/no-shell-polling-loops": "error",
     "inhuman/no-single-use-local-function": "error",
     "inhuman/no-validation-in-codec": "error",
@@ -138,6 +139,12 @@ Requires the encoded side of `Type.Decode` to validate its input. Direct or loca
 `Type.Unknown()` and `Type.Any()` bases are forbidden because they move validation into the
 codec callback instead of expressing it in the schema. Named, aliased, default, and namespace
 TypeBox imports are recognized.
+
+### `inhuman/no-literal-boolean-check`
+
+Forbids wrapping boolean conditions in `Check(Type.Literal(true|false), ...)`.
+Use the boolean condition directly. Direct and locally bound literal schemas are
+recognized with named, aliased, default, and namespace TypeBox imports.
 
 ### `inhuman/no-validation-in-codec`
 
