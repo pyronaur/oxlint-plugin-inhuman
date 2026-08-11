@@ -12,6 +12,7 @@ import { noCaughtTypeboxValidationRule } from "./rules/no-caught-typebox-validat
 import { noEmptyWrappersRule } from "./rules/no-empty-wrappers.js";
 import { noLocalPropertyAliasRule } from "./rules/no-local-property-alias.js";
 import { noManualValidationRule } from "./rules/no-manual-validation.js";
+import { noNonvalidatingDecodeRule } from "./rules/no-nonvalidating-decode.js";
 import { noShellPollingLoopsRule } from "./rules/no-shell-polling-loops.js";
 import { noSingleUseLocalFunctionRule } from "./rules/no-single-use-local-function.js";
 import { noSwallowedCatchRule } from "./rules/no-swallowed-catch.js";
@@ -29,6 +30,7 @@ export default {
 		"no-empty-wrappers": noEmptyWrappersRule,
 		"no-local-property-alias": noLocalPropertyAliasRule,
 		"no-manual-validation": noManualValidationRule,
+		"no-nonvalidating-decode": noNonvalidatingDecodeRule,
 		"no-shell-polling-loops": noShellPollingLoopsRule,
 		"no-single-use-local-function": noSingleUseLocalFunctionRule,
 		"max-function-size": maxFunctionSizeRule,

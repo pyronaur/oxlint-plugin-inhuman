@@ -1,14 +1,14 @@
 import {
+	collectTypeboxImportBindings,
+	createTypeboxBindings,
 	getSourceCode,
-	getStaticPropertyName,
-	unwrapExpression,
+	getTypeboxValueCallName,
 	walkWithoutNestedFunctions,
 } from "./ast.js";
 
 const NO_CAUGHT_TYPEBOX_VALIDATION_MESSAGE =
 	"Do not catch TypeBox Assert, Parse, or Decode failures outside the configured validation boundary.";
 
-const TYPEBOX_VALUE_MODULE = "typebox/value";
 const VALIDATION_EXPORTS = new Set(["Assert", "Decode", "Parse"]);
 
 function normalizedPath(value) {
@@ -33,25 +33,7 @@ function isAllowedFile(filename, allowedFiles) {
 }
 
 function isImportedValidationCall(node, bindings) {
-	const expression = unwrapExpression(node);
-	if (expression?.type !== "CallExpression") {
-		return false;
-	}
-
-	const callee = unwrapExpression(expression.callee);
-	if (callee?.type === "Identifier") {
-		return bindings.named.has(callee.name);
-	}
-
-	if (callee?.type !== "MemberExpression") {
-		return false;
-	}
-
-	const object = unwrapExpression(callee.object);
-	const property = getStaticPropertyName(callee.property);
-	return object?.type === "Identifier"
-		&& bindings.namespaces.has(object.name)
-		&& VALIDATION_EXPORTS.has(property);
+	return VALIDATION_EXPORTS.has(getTypeboxValueCallName(node, bindings));
 }
 
 function blockCallsImportedValidation(block, bindings, visitorKeys) {
@@ -60,26 +42,6 @@ function blockCallsImportedValidation(block, bindings, visitorKeys) {
 		found = found || isImportedValidationCall(node, bindings);
 	});
 	return found;
-}
-
-function collectImportBindings(node, bindings) {
-	if (node.source?.value !== TYPEBOX_VALUE_MODULE) {
-		return;
-	}
-
-	for (const specifier of node.specifiers ?? []) {
-		if (specifier.type === "ImportNamespaceSpecifier") {
-			bindings.namespaces.add(specifier.local.name);
-			continue;
-		}
-
-		if (
-			specifier.type === "ImportSpecifier"
-			&& VALIDATION_EXPORTS.has(getStaticPropertyName(specifier.imported))
-		) {
-			bindings.named.add(specifier.local.name);
-		}
-	}
 }
 
 export const noCaughtTypeboxValidationRule = {
@@ -112,12 +74,12 @@ export const noCaughtTypeboxValidationRule = {
 			return {};
 		}
 
-		const bindings = { named: new Set(), namespaces: new Set() };
+		const bindings = createTypeboxBindings();
 		const sourceCode = getSourceCode(context);
 		const visitorKeys = sourceCode?.visitorKeys ?? {};
 		return {
 			ImportDeclaration(node) {
-				collectImportBindings(node, bindings);
+				collectTypeboxImportBindings(node, bindings);
 			},
 			TryStatement(node) {
 				if (

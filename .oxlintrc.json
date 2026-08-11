@@ -145,6 +145,15 @@
 			}
 		},
 		{
+			"files": [
+				"examples/pass/no-nonvalidating-decode.ts",
+				"examples/fail/no-nonvalidating-decode.ts"
+			],
+			"rules": {
+				"inhuman/no-nonvalidating-decode": "error"
+			}
+		},
+		{
 			"files": ["examples/pass/no-caught-typebox-validation.ts"],
 			"rules": {
 				"inhuman/no-caught-typebox-validation": [

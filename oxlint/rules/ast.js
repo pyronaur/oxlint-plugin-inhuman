@@ -24,6 +24,63 @@ function walkNode(node, state, visit) {
 	}
 }
 
+const TYPEBOX_MODULE = "typebox";
+const TYPEBOX_VALUE_MODULE = "typebox/value";
+
+function callCallee(node) {
+	const expression = unwrapExpression(node);
+	if (expression?.type !== "CallExpression") {
+		return null;
+	}
+
+	return unwrapExpression(expression.callee);
+}
+
+function collectTypeImport(specifier, bindings) {
+	if (specifier.type === "ImportNamespaceSpecifier") {
+		bindings.typeNamespaces.add(specifier.local.name);
+		return;
+	}
+
+	const importsType = specifier.type === "ImportSpecifier"
+		&& getStaticPropertyName(specifier.imported) === "Type";
+	if (specifier.type === "ImportDefaultSpecifier" || importsType) {
+		bindings.typeObjects.add(specifier.local.name);
+	}
+}
+
+function collectValueImport(specifier, bindings) {
+	if (specifier.type === "ImportNamespaceSpecifier") {
+		bindings.valueNamespaces.add(specifier.local.name);
+		return;
+	}
+
+	if (specifier.type !== "ImportSpecifier") {
+		return;
+	}
+
+	bindings.valueFunctions.set(
+		specifier.local.name,
+		getStaticPropertyName(specifier.imported),
+	);
+}
+
+function isTypeObject(node, bindings) {
+	const expression = unwrapExpression(node);
+	if (expression?.type === "Identifier") {
+		return bindings.typeObjects.has(expression.name);
+	}
+
+	if (expression?.type !== "MemberExpression") {
+		return false;
+	}
+
+	const object = unwrapExpression(expression.object);
+	return object?.type === "Identifier"
+		&& bindings.typeNamespaces.has(object.name)
+		&& getStaticPropertyName(expression.property) === "Type";
+}
+
 export function getStaticPropertyName(node) {
 	if (node?.type === "Identifier") {
 		return node.name;
@@ -132,4 +189,57 @@ export function createFunctionLikeVisitors(visit) {
 			visit(current);
 		},
 	};
+}
+
+export function createTypeboxBindings() {
+	return {
+		typeNamespaces: new Set(),
+		typeObjects: new Set(),
+		valueFunctions: new Map(),
+		valueNamespaces: new Set(),
+	};
+}
+
+export function collectTypeboxImportBindings(node, bindings) {
+	if (node.source?.value === TYPEBOX_MODULE) {
+		for (const specifier of node.specifiers ?? []) {
+			collectTypeImport(specifier, bindings);
+		}
+		return;
+	}
+
+	if (node.source?.value !== TYPEBOX_VALUE_MODULE) {
+		return;
+	}
+
+	for (const specifier of node.specifiers ?? []) {
+		collectValueImport(specifier, bindings);
+	}
+}
+
+export function getTypeboxTypeCallName(node, bindings) {
+	const callee = callCallee(node);
+	if (callee?.type !== "MemberExpression" || !isTypeObject(callee.object, bindings)) {
+		return null;
+	}
+
+	return getStaticPropertyName(callee.property);
+}
+
+export function getTypeboxValueCallName(node, bindings) {
+	const callee = callCallee(node);
+	if (callee?.type === "Identifier") {
+		return bindings.valueFunctions.get(callee.name) ?? null;
+	}
+
+	if (callee?.type !== "MemberExpression") {
+		return null;
+	}
+
+	const object = unwrapExpression(callee.object);
+	if (object?.type !== "Identifier" || !bindings.valueNamespaces.has(object.name)) {
+		return null;
+	}
+
+	return getStaticPropertyName(callee.property);
 }

@@ -26,6 +26,7 @@ Oxlint requires enabling JS plugin rules explicitly under `rules`.
     "inhuman/no-empty-wrappers": "error",
     "inhuman/no-local-property-alias": "error",
     "inhuman/no-manual-validation": "error",
+    "inhuman/no-nonvalidating-decode": "error",
     "inhuman/no-shell-polling-loops": "error",
     "inhuman/no-single-use-local-function": "error",
     "inhuman/max-function-size": "error",
@@ -129,6 +130,13 @@ The diagnostic does not prescribe a schema library. It asks whether the project'
 schema or validation package should own the validation and inferred type instead.
 
 Ordinary runtime control flow and predicates over already-typed domain inputs are allowed.
+
+### `inhuman/no-nonvalidating-decode`
+
+Requires the encoded side of `Type.Decode` to validate its input. Direct or locally bound
+`Type.Unknown()` and `Type.Any()` bases are forbidden because they move validation into the
+codec callback instead of expressing it in the schema. Named, aliased, default, and namespace
+TypeBox imports are recognized.
 
 ### `inhuman/no-shell-polling-loops`
 
