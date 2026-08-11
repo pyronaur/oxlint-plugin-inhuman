@@ -16,6 +16,7 @@ import { noNonvalidatingDecodeRule } from "./rules/no-nonvalidating-decode.js";
 import { noShellPollingLoopsRule } from "./rules/no-shell-polling-loops.js";
 import { noSingleUseLocalFunctionRule } from "./rules/no-single-use-local-function.js";
 import { noSwallowedCatchRule } from "./rules/no-swallowed-catch.js";
+import { noValidationInCodecRule } from "./rules/no-validation-in-codec.js";
 import { requireGuardClausesRule } from "./rules/require-guard-clauses.js";
 
 export default {
@@ -34,6 +35,7 @@ export default {
 		"no-shell-polling-loops": noShellPollingLoopsRule,
 		"no-single-use-local-function": noSingleUseLocalFunctionRule,
 		"max-function-size": maxFunctionSizeRule,
+		"no-validation-in-codec": noValidationInCodecRule,
 		"no-switch": noBranchingPlugin.rules["no-switch"],
 		"no-else": noBranchingPlugin.rules["no-else"],
 	},

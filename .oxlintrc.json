@@ -154,6 +154,15 @@
 			}
 		},
 		{
+			"files": [
+				"examples/pass/no-validation-in-codec.ts",
+				"examples/fail/no-validation-in-codec.ts"
+			],
+			"rules": {
+				"inhuman/no-validation-in-codec": "error"
+			}
+		},
+		{
 			"files": ["examples/pass/no-caught-typebox-validation.ts"],
 			"rules": {
 				"inhuman/no-caught-typebox-validation": [

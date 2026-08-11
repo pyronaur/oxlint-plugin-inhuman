@@ -29,6 +29,7 @@ Oxlint requires enabling JS plugin rules explicitly under `rules`.
     "inhuman/no-nonvalidating-decode": "error",
     "inhuman/no-shell-polling-loops": "error",
     "inhuman/no-single-use-local-function": "error",
+    "inhuman/no-validation-in-codec": "error",
     "inhuman/max-function-size": "error",
     "inhuman/no-switch": "error",
     "inhuman/no-else": "error"
@@ -137,6 +138,13 @@ Requires the encoded side of `Type.Decode` to validate its input. Direct or loca
 `Type.Unknown()` and `Type.Any()` bases are forbidden because they move validation into the
 codec callback instead of expressing it in the schema. Named, aliased, default, and namespace
 TypeBox imports are recognized.
+
+### `inhuman/no-validation-in-codec`
+
+Requires `Type.Decode` callbacks to transform input that the encoded schema has already
+validated. Calls to TypeBox `Check` or `Assert` and conditional validation throws belong
+in the encoded schema or its refinements. Inline and locally named callbacks are recognized.
+Pure transformations and conditional propagation of an existing error are allowed.
 
 ### `inhuman/no-shell-polling-loops`
 

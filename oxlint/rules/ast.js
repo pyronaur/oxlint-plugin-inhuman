@@ -135,6 +135,22 @@ export function walkWithoutNestedFunctions(node, visitorKeys, visit) {
 	walkNode(node, { root: node, visitorKeys }, visit);
 }
 
+export function walkDescendants(node, visitorKeys, visit) {
+	const pending = [node];
+	while (pending.length > 0) {
+		const current = pending.pop();
+		if (current == null || typeof current.type !== "string") {
+			continue;
+		}
+
+		visit(current);
+		for (const key of visitorKeys[current.type] ?? []) {
+			const child = current[key];
+			pending.push(...(Array.isArray(child) ? child : [child]));
+		}
+	}
+}
+
 export function getCalleeNameCandidates(node) {
 	if (!node) {
 		return [];
