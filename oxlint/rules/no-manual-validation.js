@@ -22,6 +22,12 @@ const BROAD_INPUT_TYPES = new Set([
 	"TSUnknownKeyword",
 ]);
 
+const UNKNOWN_INPUT_TYPES = new Set([
+	"TSAnyKeyword",
+	"TSObjectKeyword",
+	"TSUnknownKeyword",
+]);
+
 const VALIDATOR_CALLEES = new Set([
 	"Array.isArray",
 	"Number.isFinite",
@@ -81,12 +87,24 @@ function isBroadInputType(annotation) {
 	return BROAD_INPUT_TYPES.has(annotation?.type);
 }
 
+function isUnknownInputType(annotation) {
+	if (annotation?.type === "TSUnionType") {
+		return annotation.types.length > 0 && annotation.types.every(isUnknownInputType);
+	}
+
+	return UNKNOWN_INPUT_TYPES.has(annotation?.type);
+}
+
 function getBroadInputNames(node) {
 	return new Set(
 		(node.params ?? [])
 			.filter((param) => param.type === "Identifier" && isBroadInputType(getTypeAnnotation(param)))
 			.map((param) => param.name),
 	);
+}
+
+function hasUnknownInput(node) {
+	return (node.params ?? []).some((param) => isUnknownInputType(getTypeAnnotation(param)));
 }
 
 function nodeReferencesNames(node, names, visitorKeys) {
@@ -190,18 +208,13 @@ function isFailureReturn(node) {
 }
 
 function getReturnEvidence(body, names, visitorKeys) {
-	const evidence = { rejects: false, succeeds: false };
+	const evidence = { succeeds: false };
 	walkWithoutNestedFunctions(body, visitorKeys, (node) => {
-		if (node.type === "ThrowStatement") {
-			evidence.rejects = true;
-		}
-
 		if (node.type !== "ReturnStatement") {
 			return;
 		}
 
 		if (isFailureReturn(node)) {
-			evidence.rejects = true;
 			return;
 		}
 
@@ -210,6 +223,41 @@ function getReturnEvidence(body, names, visitorKeys) {
 		}
 	});
 	return evidence;
+}
+
+function branchHasRejection(branch, visitorKeys) {
+	let found = false;
+	walkWithoutNestedFunctions(branch, visitorKeys, (node) => {
+		if (node.type === "ThrowStatement") {
+			found = true;
+			return;
+		}
+
+		if (node.type === "ReturnStatement" && isFailureReturn(node)) {
+			found = true;
+		}
+	});
+	return found;
+}
+
+function hasValidationRejection(body, evidence) {
+	let found = false;
+	walkWithoutNestedFunctions(body, evidence.visitorKeys, (node) => {
+		if (node.type !== "IfStatement" || !bodyHasValidation(node.test, evidence)) {
+			return;
+		}
+
+		if (
+			branchHasRejection(node.consequent, evidence.visitorKeys)
+			|| (
+				node.alternate != null
+				&& branchHasRejection(node.alternate, evidence.visitorKeys)
+			)
+		) {
+			found = true;
+		}
+	});
+	return found;
 }
 
 function hasConversion(body, names, visitorKeys) {
@@ -233,10 +281,24 @@ function returnsDifferentType(node) {
 		return false;
 	}
 
+	const returnType = unwrapPromiseType(node.returnType.typeAnnotation);
 	return (node.params ?? []).some((param) => {
 		const inputType = getTypeAnnotation(param);
-		return isBroadInputType(inputType) && inputType.type !== node.returnType.typeAnnotation.type;
+		return isBroadInputType(inputType) && inputType.type !== returnType.type;
 	});
+}
+
+function unwrapPromiseType(annotation) {
+	if (
+		annotation.type !== "TSTypeReference"
+		|| annotation.typeName?.type !== "Identifier"
+		|| annotation.typeName.name !== "Promise"
+	) {
+		return annotation;
+	}
+
+	const typeArguments = annotation.typeArguments ?? annotation.typeParameters;
+	return typeArguments?.params?.[0] ?? annotation;
 }
 
 function isManualValidation(node, visitorKeys) {
@@ -251,13 +313,18 @@ function isManualValidation(node, visitorKeys) {
 	}
 
 	const returns = getReturnEvidence(node.body, names, visitorKeys);
-	if (!returns.rejects || !returns.succeeds) {
+	if (!returns.succeeds) {
 		return false;
 	}
 
-	const hasParserShape = hasConversion(node.body, names, visitorKeys) || returnsDifferentType(node);
+	const hasParserShape = hasConversion(node.body, names, visitorKeys)
+		|| (hasUnknownInput(node) && returnsDifferentType(node));
 	return hasParserShape
-		&& bodyHasValidation(node.body, { allowComparisons: true, names, visitorKeys });
+		&& hasValidationRejection(node.body, {
+			allowComparisons: true,
+			names,
+			visitorKeys,
+		});
 }
 
 export const noManualValidationRule = {
