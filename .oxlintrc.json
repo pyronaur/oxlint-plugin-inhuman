@@ -133,6 +133,7 @@
 		{
 			"files": [
 				"examples/pass/no-caught-typebox-validation.ts",
+				"examples/fail/no-caught-typebox-validation-assert.ts",
 				"examples/fail/no-caught-typebox-validation-alias.ts",
 				"examples/fail/no-caught-typebox-validation-cause.ts",
 				"examples/fail/no-caught-typebox-validation-direct.ts",
@@ -141,6 +142,17 @@
 			],
 			"rules": {
 				"inhuman/no-caught-typebox-validation": "error"
+			}
+		},
+		{
+			"files": ["examples/pass/no-caught-typebox-validation.ts"],
+			"rules": {
+				"inhuman/no-caught-typebox-validation": [
+					"error",
+					{
+						"allowed_files": ["examples/pass/no-caught-typebox-validation.ts"]
+					}
+				]
 			}
 		},
 		{

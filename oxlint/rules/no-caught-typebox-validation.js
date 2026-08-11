@@ -6,10 +6,31 @@ import {
 } from "./ast.js";
 
 const NO_CAUGHT_TYPEBOX_VALIDATION_MESSAGE =
-	"Do not catch TypeBox Parse or Decode failures to synthesize application errors. Express expected validation through a schema or refinement and allow structured TypeBox errors to propagate.";
+	"Do not catch TypeBox Assert, Parse, or Decode failures outside the configured validation boundary.";
 
 const TYPEBOX_VALUE_MODULE = "typebox/value";
-const VALIDATION_EXPORTS = new Set(["Decode", "Parse"]);
+const VALIDATION_EXPORTS = new Set(["Assert", "Decode", "Parse"]);
+
+function normalizedPath(value) {
+	return value.replaceAll("\\", "/");
+}
+
+function isAllowedFile(filename, allowedFiles) {
+	const normalizedFilename = normalizedPath(filename);
+	return allowedFiles.some((configuredPath) => {
+		const normalizedConfiguredPath = normalizedPath(configuredPath);
+		if (normalizedFilename === normalizedConfiguredPath) {
+			return true;
+		}
+
+		if (normalizedConfiguredPath.startsWith("/")) {
+			return false;
+		}
+
+		const relativePath = normalizedConfiguredPath.replace(/^\.\//u, "");
+		return normalizedFilename.endsWith(`/${relativePath}`);
+	});
+}
 
 function isImportedValidationCall(node, bindings) {
 	const expression = unwrapExpression(node);
@@ -65,15 +86,32 @@ export const noCaughtTypeboxValidationRule = {
 	meta: {
 		type: "suggestion",
 		docs: {
-			description: "Disallow catching TypeBox Parse or Decode failures.",
+			description: "Disallow catching TypeBox validation failures outside configured boundaries.",
 			recommended: false,
 		},
-		schema: [],
+		schema: [
+			{
+				type: "object",
+				properties: {
+					allowed_files: {
+						type: "array",
+						items: { type: "string" },
+						uniqueItems: true,
+					},
+				},
+				additionalProperties: false,
+			},
+		],
 		messages: {
 			noCaughtTypeboxValidation: NO_CAUGHT_TYPEBOX_VALIDATION_MESSAGE,
 		},
 	},
 	create(context) {
+		const allowedFiles = context.options?.[0]?.allowed_files ?? [];
+		if (isAllowedFile(context.filename, allowedFiles)) {
+			return {};
+		}
+
 		const bindings = { named: new Set(), namespaces: new Set() };
 		const sourceCode = getSourceCode(context);
 		const visitorKeys = sourceCode?.visitorKeys ?? {};

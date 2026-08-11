@@ -70,10 +70,26 @@ Optional config:
 
 ### `inhuman/no-caught-typebox-validation`
 
-Forbids `try`/`catch` around `Parse` or `Decode` imported from `typebox/value`, including
-aliased and namespace imports. Expected validation failures should be expressed through TypeBox
-schemas or refinements so structured TypeBox errors can propagate. Operational catches unrelated
-to TypeBox validation are allowed.
+Forbids `try`/`catch` around `Assert`, `Parse`, or `Decode` imported from `typebox/value`,
+including aliased and namespace imports. Expected validation failures should be expressed through
+TypeBox schemas or refinements so structured TypeBox errors can propagate. Operational catches
+unrelated to TypeBox validation are allowed.
+
+A shared boundary parser may be permitted by its exact absolute path or normalized
+project-relative suffix:
+
+```json
+{
+  "rules": {
+    "inhuman/no-caught-typebox-validation": [
+      "error",
+      {
+        "allowed_files": ["workflows/x/modules/typebox/decode.ts"]
+      }
+    ]
+  }
+}
+```
 
 ### `inhuman/no-empty-wrappers`
 
