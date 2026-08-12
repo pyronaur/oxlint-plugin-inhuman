@@ -18,6 +18,7 @@ import {
 	expandPublicSchemas,
 	usesPublicUnsafeType,
 } from "./schema-public.js";
+import { schemaRefineFlows } from "./schema-refine-flow.js";
 
 const NO_UNUSED_SCHEMA_PROPERTY_MESSAGE =
 	"This private schema property is validated but its decoded value is not used.";
@@ -330,6 +331,33 @@ function codecUsage(schema, state) {
 	return usage;
 }
 
+function refineUsage(schema, state) {
+	const usage = { whole: new Set() };
+	for (const flow of schemaRefineFlows(schema, state)) {
+		if (flow.callback == null) {
+			usage.whole.add(JSON.stringify(flow.path));
+			continue;
+		}
+		const parameter = flow.callback.params[0];
+		if (parameter != null) {
+			tracePattern(parameter, flow.path, {
+				declarator: flow.callback,
+				ignoredNode: null,
+				seen: new Set(),
+				state,
+				usage,
+			});
+		}
+	}
+	return usage;
+}
+
+function mergeUsage(...inputs) {
+	return {
+		whole: new Set(inputs.flatMap((usage) => [...usage.whole])),
+	};
+}
+
 function hasWholeUsage(usage, path) {
 	for (let length = 0; length <= path.length; length += 1) {
 		if (usage.whole.has(JSON.stringify(path.slice(0, length)))) {
@@ -451,7 +479,8 @@ export const noUnusedSchemaPropertiesRule = {
 						continue;
 					}
 
-					const usage = codecUsage(schema, state) ?? callUsage(boundary, state);
+					const outputUsage = codecUsage(schema, state) ?? callUsage(boundary, state);
+					const usage = mergeUsage(outputUsage, refineUsage(schema, state));
 					reportUnused({ context, path: [], tree, usage }, state);
 				}
 			},

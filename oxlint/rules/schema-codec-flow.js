@@ -1,19 +1,5 @@
 import { getTypeboxTypeCallName, unwrapExpression } from "./ast.js";
 
-function resolvedExpression(node, state, seen = new Set()) {
-	const expression = unwrapExpression(node);
-	if (expression?.type !== "Identifier" || seen.has(expression.name)) {
-		return expression;
-	}
-
-	const declaration = state.valueDeclarators.get(expression.name);
-	if (declaration == null) {
-		return expression;
-	}
-	seen.add(expression.name);
-	return resolvedExpression(declaration.init, state, seen);
-}
-
 function returnExpression(callback) {
 	if (callback.body.type !== "BlockStatement") {
 		return unwrapExpression(callback.body);
@@ -46,6 +32,20 @@ function isTransparentCallback(callback) {
 	return returned?.type === "LogicalExpression"
 		&& returned.operator === "??"
 		&& isParameter(unwrapExpression(returned.left), parameter);
+}
+
+export function resolvedExpression(node, state, seen = new Set()) {
+	const expression = unwrapExpression(node);
+	if (expression?.type !== "Identifier" || seen.has(expression.name)) {
+		return expression;
+	}
+
+	const declaration = state.valueDeclarators.get(expression.name);
+	if (declaration == null) {
+		return expression;
+	}
+	seen.add(expression.name);
+	return resolvedExpression(declaration.init, state, seen);
 }
 
 export function codecFlow(schema, state) {

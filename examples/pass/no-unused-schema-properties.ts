@@ -172,6 +172,21 @@ const PrivateUnsafe = Type.Unsafe<PrivateUnsafeContract>(Type.Object({
 const privateUnsafe = Parse(PrivateUnsafe, { name: "foo", value: 1 });
 console.log(privateUnsafe.name, privateUnsafe.value);
 
+const refinedPredicate = ({ condition: { enabled } }: {
+	condition: { enabled: boolean };
+}) => enabled;
+const refinedMessage = ({ label }: { label: string }) => `invalid ${label}`;
+const RefinedConsumption = Type.Refine(Type.Object({
+	condition: Type.Object({ enabled: Type.Boolean() }),
+	label: Type.String(),
+	output: Type.String(),
+}), refinedPredicate, refinedMessage);
+console.log(Parse(RefinedConsumption, {
+	condition: { enabled: true },
+	label: "foo",
+	output: "bar",
+}).output);
+
 Parse(PublicSchema, { publicName: "foo", publicValue: 1 });
 export const PublicSchema = Type.Object({
 	publicName: Type.String(),

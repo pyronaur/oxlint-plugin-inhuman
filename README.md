@@ -163,7 +163,8 @@ runtime decoding. The rule follows imported TypeBox `Assert`, `Decode`, and `Par
 configured project boundary functions. A schema property is consumed by a direct read,
 destructuring, array iterator, or `for...of` binding. Local aliases and transparent identity or
 nullish `Type.Decode` transforms preserve this flow. For a projecting codec, fields consumed by the
-codec determine which encoded properties are used. Returning, forwarding, spreading, or dynamically
+codec determine which encoded properties are used. Fields read by `Type.Refine` predicate and
+localized-message callbacks are also consumed. Returning, forwarding, spreading, or dynamically
 indexing the decoded value consumes the complete value because use outside the current file cannot
 be inspected.
 

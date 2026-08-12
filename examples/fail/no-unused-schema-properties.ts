@@ -107,3 +107,16 @@ const PrivateUnsafe = Type.Unsafe<PrivateUnsafeContract>(Type.Object({
 	ignored: Type.String(),
 }));
 console.log(Parse(PrivateUnsafe, { used: "foo", ignored: "bar" }).used);
+
+const RefinedWithIgnoredField = Type.Refine(Type.Object({
+	checked: Type.String(),
+	label: Type.String(),
+	output: Type.String(),
+	ignored: Type.String(),
+}), ({ checked }) => checked.length > 0, ({ label }) => `invalid ${label}`);
+console.log(Parse(RefinedWithIgnoredField, {
+	checked: "foo",
+	label: "bar",
+	output: "baz",
+	ignored: "qux",
+}).output);
