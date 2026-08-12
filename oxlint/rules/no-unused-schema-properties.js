@@ -7,12 +7,17 @@ import {
 	getTypeboxTypeCallName,
 	getTypeboxValueCallName,
 	unwrapExpression,
-	walkDescendants,
 } from "./ast.js";
 import {
 	traceArrayIterator,
 	traceForOfElement,
 } from "./schema-array-flow.js";
+import { codecFlow } from "./schema-codec-flow.js";
+import {
+	collectExport,
+	expandPublicSchemas,
+	usesPublicUnsafeType,
+} from "./schema-public.js";
 
 const NO_UNUSED_SCHEMA_PROPERTY_MESSAGE =
 	"This private schema property is validated but its decoded value is not used.";
@@ -22,6 +27,7 @@ const SCHEMA_WRAPPERS = new Set([
 	"Optional",
 	"Readonly",
 	"Refine",
+	"Unsafe",
 ]);
 const TYPEBOX_BOUNDARIES = new Set(["Assert", "Decode", "Parse"]);
 
@@ -93,6 +99,9 @@ function calledSchemaTree(expression, state, seen) {
 	if (callName === "Record" || callName == null) {
 		return null;
 	}
+	if (callName === "Unsafe" && usesPublicUnsafeType(expression, state)) {
+		return null;
+	}
 	if (SCHEMA_WRAPPERS.has(callName)) {
 		return schemaTree(expression.arguments?.[0], state, seen);
 	}
@@ -105,80 +114,6 @@ function schemaTree(node, state, seen = new Set()) {
 		return referencedSchemaTree(expression, state, seen);
 	}
 	return calledSchemaTree(expression, state, seen);
-}
-
-function exportedTypeSchemaNames(node, visitorKeys) {
-	const names = new Set();
-	walkDescendants(node, visitorKeys, (descendant) => {
-		if (descendant.type !== "TSTypeQuery") {
-			return;
-		}
-
-		const expression = unwrapExpression(descendant.exprName);
-		if (expression?.type === "Identifier") {
-			names.add(expression.name);
-		}
-	});
-	return names;
-}
-
-function collectExportedVariables(declaration, publicSchemas) {
-	if (declaration?.type !== "VariableDeclaration") {
-		return;
-	}
-	for (const item of declaration.declarations) {
-		const name = declaredName(item);
-		if (name != null) {
-			publicSchemas.add(name);
-		}
-	}
-}
-
-function collectExportedType(declaration, state) {
-	if (declaration?.type !== "TSTypeAliasDeclaration") {
-		return;
-	}
-	for (const name of exportedTypeSchemaNames(declaration, state.visitorKeys)) {
-		state.publicSchemas.add(name);
-	}
-}
-
-function collectExportSpecifiers(specifiers, publicSchemas) {
-	for (const specifier of specifiers) {
-		const name = getStaticPropertyName(specifier.local);
-		if (name != null) {
-			publicSchemas.add(name);
-		}
-	}
-}
-
-function collectExport(node, state) {
-	collectExportedVariables(node.declaration, state.publicSchemas);
-	collectExportedType(node.declaration, state);
-	collectExportSpecifiers(node.specifiers ?? [], state.publicSchemas);
-}
-
-function expandPublicSchemas(state) {
-	const pending = [...state.publicSchemas];
-	while (pending.length > 0) {
-		const name = pending.pop();
-		const declaration = state.schemas.get(name);
-		if (declaration == null) {
-			continue;
-		}
-
-		walkDescendants(declaration, state.visitorKeys, (descendant) => {
-			if (
-				descendant.type !== "Identifier"
-				|| !state.schemas.has(descendant.name)
-				|| state.publicSchemas.has(descendant.name)
-			) {
-				return;
-			}
-			state.publicSchemas.add(descendant.name);
-			pending.push(descendant.name);
-		});
-	}
 }
 
 function boundaryCall(node, state) {
@@ -371,6 +306,30 @@ function callUsage(input, state) {
 	return usage;
 }
 
+function codecUsage(schema, state) {
+	const flow = codecFlow(schema, state);
+	if (flow == null || flow.transparent) {
+		return null;
+	}
+
+	const usage = { whole: new Set() };
+	if (flow.callback == null) {
+		usage.whole.add(JSON.stringify([]));
+		return usage;
+	}
+	if (flow.callback.params[0] == null) {
+		return usage;
+	}
+	tracePattern(flow.callback.params[0], [], {
+		declarator: flow.callback,
+		ignoredNode: null,
+		seen: new Set(),
+		state,
+		usage,
+	});
+	return usage;
+}
+
 function hasWholeUsage(usage, path) {
 	for (let length = 0; length <= path.length; length += 1) {
 		if (usage.whole.has(JSON.stringify(path.slice(0, length)))) {
@@ -435,9 +394,12 @@ export const noUnusedSchemaPropertiesRule = {
 			bindings: createTypeboxBindings(),
 			boundaries: [],
 			options: optionsFor(context),
+			exportedNames: new Set(),
 			publicSchemas: new Set(),
+			publicTypes: new Set(),
 			schemas: new Map(),
 			sourceCode,
+			typeDeclarations: new Set(),
 			valueDeclarators: new Map(),
 			visitorKeys: sourceCode?.visitorKeys ?? {},
 		};
@@ -458,6 +420,18 @@ export const noUnusedSchemaPropertiesRule = {
 			ExportNamedDeclaration(node) {
 				collectExport(node, state);
 			},
+			TSInterfaceDeclaration(node) {
+				const name = declaredName(node);
+				if (name != null) {
+					state.typeDeclarations.add(name);
+				}
+			},
+			TSTypeAliasDeclaration(node) {
+				const name = declaredName(node);
+				if (name != null) {
+					state.typeDeclarations.add(name);
+				}
+			},
 			CallExpression(node) {
 				const boundary = boundaryCall(node, state);
 				if (boundary != null) {
@@ -477,7 +451,7 @@ export const noUnusedSchemaPropertiesRule = {
 						continue;
 					}
 
-					const usage = callUsage(boundary, state);
+					const usage = codecUsage(schema, state) ?? callUsage(boundary, state);
 					reportUnused({ context, path: [], tree, usage }, state);
 				}
 			},

@@ -115,6 +115,63 @@ Parse(OpaquePackages, []).forEach((entry) => consume(entry));
 
 export type PublicType = Static<typeof PublicTypeSchema>;
 
+const IdentityCodec = Type.Decode(Type.Object({
+	name: Type.String(),
+	value: Type.Number(),
+}), (input) => input);
+const identity = Decode(IdentityCodec, { name: "foo", value: 1 });
+console.log(identity.name, identity.value);
+
+const NullishCodec = Type.Decode(Type.Array(Type.Object({
+	source: Type.String(),
+	extensions: Type.Array(Type.String()),
+})), (input) => input ?? []);
+Decode(NullishCodec, []).forEach(({ source, extensions }) => {
+	console.log(source, extensions);
+});
+
+const ProjectingCodec = Type.Decode(Type.Object({
+	left: Type.String(),
+	right: Type.String(),
+}), ({ left, right }) => `${left}:${right}`);
+console.log(Decode(ProjectingCodec, { left: "foo", right: "bar" }));
+
+declare function externalCodec(input: { name: string; value: number }): string;
+const OpaqueCodec = Type.Decode(Type.Object({
+	name: Type.String(),
+	value: Type.Number(),
+}), externalCodec);
+console.log(Decode(OpaqueCodec, { name: "foo", value: 1 }));
+
+export type PublicUnsafeContract = { used: string; external: string };
+const PublicUnsafe = Type.Unsafe<PublicUnsafeContract>(Type.Object({
+	used: Type.String(),
+	external: Type.String(),
+}));
+console.log(Parse(PublicUnsafe, { used: "foo", external: "bar" }).used);
+
+interface LaterExportedUnsafeContract {
+	used: string;
+	external: string;
+}
+export { type LaterExportedUnsafeContract };
+const LaterPublicUnsafe = Type.Unsafe<LaterExportedUnsafeContract>(Type.Object({
+	used: Type.String(),
+	external: Type.String(),
+}));
+console.log(Parse(LaterPublicUnsafe, { used: "foo", external: "bar" }).used);
+
+interface PrivateUnsafeContract {
+	name: string;
+	value: number;
+}
+const PrivateUnsafe = Type.Unsafe<PrivateUnsafeContract>(Type.Object({
+	name: Type.String(),
+	value: Type.Number(),
+}));
+const privateUnsafe = Parse(PrivateUnsafe, { name: "foo", value: 1 });
+console.log(privateUnsafe.name, privateUnsafe.value);
+
 Parse(PublicSchema, { publicName: "foo", publicValue: 1 });
 export const PublicSchema = Type.Object({
 	publicName: Type.String(),

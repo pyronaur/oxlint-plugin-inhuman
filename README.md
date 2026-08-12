@@ -160,12 +160,16 @@ Pure transformations and conditional propagation of an existing error are allowe
 
 Requires private finite `Type.Object` properties and `Type.Tuple` positions to be consumed after
 runtime decoding. The rule follows imported TypeBox `Assert`, `Decode`, and `Parse` boundaries plus
-configured project boundary functions. A schema property is consumed by a direct read or
-destructuring. Returning, forwarding, spreading, or dynamically indexing the decoded value consumes
-the complete value because use outside the current file cannot be inspected.
+configured project boundary functions. A schema property is consumed by a direct read,
+destructuring, array iterator, or `for...of` binding. Local aliases and transparent identity or
+nullish `Type.Decode` transforms preserve this flow. For a projecting codec, fields consumed by the
+codec determine which encoded properties are used. Returning, forwarding, spreading, or dynamically
+indexing the decoded value consumes the complete value because use outside the current file cannot
+be inspected.
 
-Check-only predicate schemas, open `Type.Record` schemas, directly exported schemas, and schemas
-used by exported `Static` or `StaticDecode` types are exempt.
+Check-only predicate schemas, open `Type.Record` schemas, directly exported schemas, schemas used by
+exported `Static` or `StaticDecode` types, and `Type.Unsafe` schemas backed by exported types are
+exempt.
 
 Optional boundary functions use lower snake case configuration:
 

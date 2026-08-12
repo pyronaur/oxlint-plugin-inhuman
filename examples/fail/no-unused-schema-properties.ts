@@ -82,3 +82,28 @@ const forOfPackages = Decode(ForOfPackages, []);
 for (const entry of forOfPackages) {
 	console.log(entry.source);
 }
+
+const IdentityCodec = Type.Decode(Type.Object({
+	used: Type.String(),
+	ignored: Type.String(),
+}), (input) => input);
+console.log(Decode(IdentityCodec, { used: "foo", ignored: "bar" }).used);
+
+const NullishCodec = Type.Decode(Type.Array(Type.Object({
+	source: Type.String(),
+	extensions: Type.Array(Type.String()),
+})), (input) => input ?? []);
+Decode(NullishCodec, []).map((entry) => entry.source);
+
+const ProjectingCodec = Type.Decode(Type.Object({
+	used: Type.String(),
+	ignored: Type.String(),
+}), ({ used }) => used);
+console.log(Decode(ProjectingCodec, { used: "foo", ignored: "bar" }));
+
+type PrivateUnsafeContract = { used: string; ignored: string };
+const PrivateUnsafe = Type.Unsafe<PrivateUnsafeContract>(Type.Object({
+	used: Type.String(),
+	ignored: Type.String(),
+}));
+console.log(Parse(PrivateUnsafe, { used: "foo", ignored: "bar" }).used);
