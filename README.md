@@ -30,6 +30,7 @@ Oxlint requires enabling JS plugin rules explicitly under `rules`.
     "inhuman/no-literal-boolean-check": "error",
     "inhuman/no-shell-polling-loops": "error",
     "inhuman/no-single-use-local-function": "error",
+    "inhuman/no-unused-schema-properties": "error",
     "inhuman/no-validation-in-codec": "error",
     "inhuman/max-function-size": "error",
     "inhuman/no-switch": "error",
@@ -154,6 +155,30 @@ Requires `Type.Decode` callbacks to transform input that the encoded schema has 
 validated. Calls to TypeBox `Check` or `Assert` and conditional validation throws belong
 in the encoded schema or its refinements. Inline and locally named callbacks are recognized.
 Pure transformations and conditional propagation of an existing error are allowed.
+
+### `inhuman/no-unused-schema-properties`
+
+Requires private finite `Type.Object` properties and `Type.Tuple` positions to be consumed after
+runtime decoding. The rule follows imported TypeBox `Assert`, `Decode`, and `Parse` boundaries plus
+configured project boundary functions. A schema property is consumed by a direct read or
+destructuring. Returning, forwarding, spreading, or dynamically indexing the decoded value consumes
+the complete value because use outside the current file cannot be inspected.
+
+Check-only predicate schemas, open `Type.Record` schemas, directly exported schemas, and schemas
+used by exported `Static` or `StaticDecode` types are exempt.
+
+Optional boundary functions use lower snake case configuration:
+
+```json
+{
+  "rules": {
+    "inhuman/no-unused-schema-properties": [
+      "error",
+      { "boundary_functions": ["decodeBoundary"] }
+    ]
+  }
+}
+```
 
 ### `inhuman/no-shell-polling-loops`
 

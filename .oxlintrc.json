@@ -184,6 +184,20 @@
 		},
 		{
 			"files": [
+				"examples/pass/no-unused-schema-properties.ts",
+				"examples/fail/no-unused-schema-properties.ts"
+			],
+			"rules": {
+				"inhuman/no-unused-schema-properties": [
+					"error",
+					{
+						"boundary_functions": ["decodeBoundary"]
+					}
+				]
+			}
+		},
+		{
+			"files": [
 				"examples/pass/no-shell-polling-loops.js",
 				"examples/fail/no-shell-polling-loops.js"
 			],

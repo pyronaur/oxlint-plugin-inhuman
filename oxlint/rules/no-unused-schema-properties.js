@@ -1,0 +1,448 @@
+import {
+	collectTypeboxImportBindings,
+	createTypeboxBindings,
+	getCalleeNameCandidates,
+	getSourceCode,
+	getStaticPropertyName,
+	getTypeboxTypeCallName,
+	getTypeboxValueCallName,
+	unwrapExpression,
+	walkDescendants,
+} from "./ast.js";
+
+const NO_UNUSED_SCHEMA_PROPERTY_MESSAGE =
+	"This private schema property is validated but its decoded value is not used.";
+const SCHEMA_WRAPPERS = new Set([
+	"Decode",
+	"Optional",
+	"Readonly",
+	"Refine",
+]);
+const TYPEBOX_BOUNDARIES = new Set(["Assert", "Decode", "Parse"]);
+
+function optionsFor(context) {
+	const options = context.options?.[0] ?? {};
+	return {
+		boundaryFunctions: new Set(options.boundary_functions ?? []),
+	};
+}
+
+function declaredName(node) {
+	return node.id?.type === "Identifier" ? node.id.name : null;
+}
+
+function schemaProperty(node) {
+	if (node.type !== "Property" || node.computed || node.kind !== "init") {
+		return null;
+	}
+
+	const name = getStaticPropertyName(node.key);
+	return name == null ? null : { name, node: node.key, schema: node.value };
+}
+
+function objectChildren(node) {
+	const shape = unwrapExpression(node.arguments?.[0]);
+	if (shape?.type !== "ObjectExpression") {
+		return [];
+	}
+
+	return shape.properties.flatMap((property) => {
+		const child = schemaProperty(property);
+		return child == null ? [] : [child];
+	});
+}
+
+function tupleChildren(node) {
+	const shape = unwrapExpression(node.arguments?.[0]);
+	if (shape?.type !== "ArrayExpression") {
+		return [];
+	}
+
+	return shape.elements.flatMap((schema, index) => {
+		return schema == null ? [] : [{ name: String(index), node: schema, schema }];
+	});
+}
+
+function referencedSchemaTree(expression, state, seen) {
+	if (seen.has(expression.name)) {
+		return null;
+	}
+	const declaration = state.schemas.get(expression.name);
+	if (declaration == null) {
+		return null;
+	}
+	return schemaTree(declaration, state, new Set([...seen, expression.name]));
+}
+
+function calledSchemaTree(expression, state, seen) {
+	const callName = getTypeboxTypeCallName(expression, state.bindings);
+	if (callName === "Literal") {
+		return { children: [], literal: true };
+	}
+	if (callName === "Object") {
+		return { children: objectChildren(expression), literal: false };
+	}
+	if (callName === "Tuple") {
+		return { children: tupleChildren(expression), literal: false };
+	}
+	if (callName === "Record" || callName == null) {
+		return null;
+	}
+	if (SCHEMA_WRAPPERS.has(callName)) {
+		return schemaTree(expression.arguments?.[0], state, seen);
+	}
+	return { children: [], literal: false };
+}
+
+function schemaTree(node, state, seen = new Set()) {
+	const expression = unwrapExpression(node);
+	if (expression?.type === "Identifier") {
+		return referencedSchemaTree(expression, state, seen);
+	}
+	return calledSchemaTree(expression, state, seen);
+}
+
+function exportedTypeSchemaNames(node, visitorKeys) {
+	const names = new Set();
+	walkDescendants(node, visitorKeys, (descendant) => {
+		if (descendant.type !== "TSTypeQuery") {
+			return;
+		}
+
+		const expression = unwrapExpression(descendant.exprName);
+		if (expression?.type === "Identifier") {
+			names.add(expression.name);
+		}
+	});
+	return names;
+}
+
+function collectExportedVariables(declaration, publicSchemas) {
+	if (declaration?.type !== "VariableDeclaration") {
+		return;
+	}
+	for (const item of declaration.declarations) {
+		const name = declaredName(item);
+		if (name != null) {
+			publicSchemas.add(name);
+		}
+	}
+}
+
+function collectExportedType(declaration, state) {
+	if (declaration?.type !== "TSTypeAliasDeclaration") {
+		return;
+	}
+	for (const name of exportedTypeSchemaNames(declaration, state.visitorKeys)) {
+		state.publicSchemas.add(name);
+	}
+}
+
+function collectExportSpecifiers(specifiers, publicSchemas) {
+	for (const specifier of specifiers) {
+		const name = getStaticPropertyName(specifier.local);
+		if (name != null) {
+			publicSchemas.add(name);
+		}
+	}
+}
+
+function collectExport(node, state) {
+	collectExportedVariables(node.declaration, state.publicSchemas);
+	collectExportedType(node.declaration, state);
+	collectExportSpecifiers(node.specifiers ?? [], state.publicSchemas);
+}
+
+function expandPublicSchemas(state) {
+	const pending = [...state.publicSchemas];
+	while (pending.length > 0) {
+		const name = pending.pop();
+		const declaration = state.schemas.get(name);
+		if (declaration == null) {
+			continue;
+		}
+
+		walkDescendants(declaration, state.visitorKeys, (descendant) => {
+			if (
+				descendant.type !== "Identifier"
+				|| !state.schemas.has(descendant.name)
+				|| state.publicSchemas.has(descendant.name)
+			) {
+				return;
+			}
+			state.publicSchemas.add(descendant.name);
+			pending.push(descendant.name);
+		});
+	}
+}
+
+function boundaryCall(node, state) {
+	const valueCall = getTypeboxValueCallName(node, state.bindings);
+	if (TYPEBOX_BOUNDARIES.has(valueCall)) {
+		return {
+			schema: node.arguments?.[0],
+			value: valueCall === "Assert" ? node.arguments?.[1] : node,
+		};
+	}
+
+	const names = getCalleeNameCandidates(unwrapExpression(node.callee));
+	if (!names.some((name) => state.options.boundaryFunctions.has(name))) {
+		return null;
+	}
+
+	return { schema: node.arguments?.[0], value: node };
+}
+
+function consumeObjectPattern(target, path, usage) {
+	for (const property of target.properties) {
+		if (property.type === "RestElement") {
+			usage.whole.add(JSON.stringify(path));
+			continue;
+		}
+
+		const name = getStaticPropertyName(property.key);
+		if (name == null) {
+			usage.whole.add(JSON.stringify(path));
+			continue;
+		}
+
+		consumePattern(property.value, [...path, name], usage);
+	}
+}
+
+function consumeArrayPattern(target, path, usage) {
+	for (const [index, element] of target.elements.entries()) {
+		if (element != null) {
+			consumePattern(element, [...path, String(index)], usage);
+		}
+	}
+}
+
+function consumePattern(pattern, path, usage) {
+	const target = unwrapExpression(pattern);
+	if (target?.type === "AssignmentPattern") {
+		consumePattern(target.left, path, usage);
+		return;
+	}
+	if (target?.type === "ObjectPattern") {
+		consumeObjectPattern(target, path, usage);
+		return;
+	}
+	if (target?.type === "ArrayPattern") {
+		consumeArrayPattern(target, path, usage);
+		return;
+	}
+	usage.whole.add(JSON.stringify(path));
+}
+
+function memberName(node) {
+	if (!node.computed) {
+		return getStaticPropertyName(node.property);
+	}
+	if (node.property?.type !== "Literal") {
+		return null;
+	}
+	return String(node.property.value);
+}
+
+function memberUse(identifier, usage) {
+	let current = identifier;
+	const path = [];
+	while (current.parent?.type === "MemberExpression" && current.parent.object === current) {
+		const currentMemberSnapshot = current.parent;
+		const name = memberName(currentMemberSnapshot);
+		if (name == null) {
+			usage.whole.add(JSON.stringify(path));
+			return;
+		}
+
+		path.push(name);
+		current = currentMemberSnapshot;
+	}
+
+	if (path.length > 0) {
+		usage.whole.add(JSON.stringify(path));
+		return;
+	}
+
+	const parent = current.parent;
+	if (parent?.type === "VariableDeclarator" && parent.init === current) {
+		consumePattern(parent.id, [], usage);
+		return;
+	}
+
+	usage.whole.add(JSON.stringify([]));
+}
+
+function isInside(node, ancestor) {
+	let current = node;
+	while (current != null) {
+		if (current === ancestor) {
+			return true;
+		}
+		current = current.parent;
+	}
+	return false;
+}
+
+function variableUsage(declarator, ignoredNode, sourceCode) {
+	const usage = { whole: new Set() };
+	const variable = sourceCode
+		.getDeclaredVariables(declarator)
+		.find((candidate) => candidate.name === declarator.id.name);
+	if (variable == null) {
+		usage.whole.add(JSON.stringify([]));
+		return usage;
+	}
+
+	for (const reference of variable.references) {
+		if (!reference.isRead() || isInside(reference.identifier, ignoredNode)) {
+			continue;
+		}
+
+		memberUse(reference.identifier, usage);
+	}
+	return usage;
+}
+
+function callUsage(input, state) {
+	const { call, value } = input;
+	const usage = { whole: new Set() };
+	const expression = unwrapExpression(value);
+	if (expression?.type === "Identifier") {
+		const declaration = state.valueDeclarators.get(expression.name);
+		if (declaration != null) {
+			return variableUsage(declaration, call, state.sourceCode);
+		}
+	}
+
+	if (value === call) {
+		const parent = call.parent;
+		if (parent?.type === "VariableDeclarator") {
+			if (parent.id.type === "Identifier") {
+				return variableUsage(parent, null, state.sourceCode);
+			}
+			consumePattern(parent.id, [], usage);
+			return usage;
+		}
+		memberUse(call, usage);
+		return usage;
+	}
+
+	usage.whole.add(JSON.stringify([]));
+	return usage;
+}
+
+function hasWholeUsage(usage, path) {
+	for (let length = 0; length <= path.length; length += 1) {
+		if (usage.whole.has(JSON.stringify(path.slice(0, length)))) {
+			return true;
+		}
+	}
+	return false;
+}
+
+function hasDescendantUsage(usage, path) {
+	const prefix = `${JSON.stringify(path).slice(0, -1)},`;
+	return [...usage.whole].some((entry) => entry.startsWith(prefix));
+}
+
+function reportUnused(input, state) {
+	const { context, path, tree, usage } = input;
+	for (const child of tree.children) {
+		const childPath = [...path, child.name];
+		const childTree = schemaTree(child.schema, state);
+		if (childTree?.literal || hasWholeUsage(usage, childPath)) {
+			continue;
+		}
+
+		if (!hasDescendantUsage(usage, childPath)) {
+			context.report({ node: child.node, messageId: "noUnusedSchemaProperty" });
+			continue;
+		}
+
+		if (childTree != null) {
+			reportUnused({ context, path: childPath, tree: childTree, usage }, state);
+		}
+	}
+}
+
+export const noUnusedSchemaPropertiesRule = {
+	meta: {
+		type: "problem",
+		docs: {
+			description: "Require private TypeBox schema properties to be consumed.",
+			recommended: false,
+		},
+		schema: [
+			{
+				type: "object",
+				properties: {
+					boundary_functions: {
+						type: "array",
+						items: { type: "string" },
+						uniqueItems: true,
+					},
+				},
+				additionalProperties: false,
+			},
+		],
+		messages: {
+			noUnusedSchemaProperty: NO_UNUSED_SCHEMA_PROPERTY_MESSAGE,
+		},
+	},
+	create(context) {
+		const sourceCode = getSourceCode(context);
+		const state = {
+			bindings: createTypeboxBindings(),
+			boundaries: [],
+			options: optionsFor(context),
+			publicSchemas: new Set(),
+			schemas: new Map(),
+			sourceCode,
+			valueDeclarators: new Map(),
+			visitorKeys: sourceCode?.visitorKeys ?? {},
+		};
+
+		return {
+			ImportDeclaration(node) {
+				collectTypeboxImportBindings(node, state.bindings);
+			},
+			VariableDeclarator(node) {
+				const name = declaredName(node);
+				if (name == null) {
+					return;
+				}
+
+				state.schemas.set(name, node.init);
+				state.valueDeclarators.set(name, node);
+			},
+			ExportNamedDeclaration(node) {
+				collectExport(node, state);
+			},
+			CallExpression(node) {
+				const boundary = boundaryCall(node, state);
+				if (boundary != null) {
+					state.boundaries.push({ call: node, ...boundary });
+				}
+			},
+			"Program:exit"() {
+				expandPublicSchemas(state);
+				for (const boundary of state.boundaries) {
+					const schema = unwrapExpression(boundary.schema);
+					if (schema?.type === "Identifier" && state.publicSchemas.has(schema.name)) {
+						continue;
+					}
+
+					const tree = schemaTree(schema, state);
+					if (tree == null) {
+						continue;
+					}
+
+					const usage = callUsage(boundary, state);
+					reportUnused({ context, path: [], tree, usage }, state);
+				}
+			},
+		};
+	},
+};
