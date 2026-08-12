@@ -61,6 +61,29 @@ const Boundary = Type.Object({
 const boundary = decodeBoundary(Boundary, { name: "foo", value: 1 });
 console.log(boundary.name, boundary.value);
 
+const Aliased = Type.Object({
+	selected: Type.Object({
+		name: Type.String(),
+		value: Type.Number(),
+	}),
+});
+const aliased = Parse(Aliased, { selected: { name: "foo", value: 1 } });
+const selectedAlias = aliased.selected;
+const { name: aliasName, value: aliasValue } = selectedAlias;
+console.log(aliasName, aliasValue);
+
+const DestructuredAlias = Type.Object({
+	selected: Type.Object({
+		name: Type.String(),
+		value: Type.Number(),
+	}),
+});
+const { selected: destructuredAlias } = Parse(DestructuredAlias, {
+	selected: { name: "foo", value: 1 },
+});
+const nestedAlias = destructuredAlias;
+console.log(nestedAlias.name, nestedAlias.value);
+
 const PublicChildSchema = Type.Object({
 	publicName: Type.String(),
 	publicValue: Type.Number(),

@@ -42,3 +42,27 @@ const boundary = decodeBoundary(BoundarySchema, {
 	ignored: "bar",
 });
 console.log(boundary.used);
+
+const AliasedSchema = Type.Object({
+	selected: Type.Object({
+		used: Type.String(),
+		ignored: Type.String(),
+	}),
+});
+const aliased = Parse(AliasedSchema, {
+	selected: { used: "foo", ignored: "bar" },
+});
+const selectedAlias = aliased.selected;
+const nestedAlias = selectedAlias;
+console.log(nestedAlias.used);
+
+const DestructuredAliasSchema = Type.Object({
+	selected: Type.Object({
+		used: Type.String(),
+		ignored: Type.String(),
+	}),
+});
+const { selected: destructuredAlias } = Parse(DestructuredAliasSchema, {
+	selected: { used: "foo", ignored: "bar" },
+});
+console.log(destructuredAlias.used);

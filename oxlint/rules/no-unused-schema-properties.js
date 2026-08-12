@@ -193,48 +193,6 @@ function boundaryCall(node, state) {
 	return { schema: node.arguments?.[0], value: node };
 }
 
-function consumeObjectPattern(target, path, usage) {
-	for (const property of target.properties) {
-		if (property.type === "RestElement") {
-			usage.whole.add(JSON.stringify(path));
-			continue;
-		}
-
-		const name = getStaticPropertyName(property.key);
-		if (name == null) {
-			usage.whole.add(JSON.stringify(path));
-			continue;
-		}
-
-		consumePattern(property.value, [...path, name], usage);
-	}
-}
-
-function consumeArrayPattern(target, path, usage) {
-	for (const [index, element] of target.elements.entries()) {
-		if (element != null) {
-			consumePattern(element, [...path, String(index)], usage);
-		}
-	}
-}
-
-function consumePattern(pattern, path, usage) {
-	const target = unwrapExpression(pattern);
-	if (target?.type === "AssignmentPattern") {
-		consumePattern(target.left, path, usage);
-		return;
-	}
-	if (target?.type === "ObjectPattern") {
-		consumeObjectPattern(target, path, usage);
-		return;
-	}
-	if (target?.type === "ArrayPattern") {
-		consumeArrayPattern(target, path, usage);
-		return;
-	}
-	usage.whole.add(JSON.stringify(path));
-}
-
 function memberName(node) {
 	if (!node.computed) {
 		return getStaticPropertyName(node.property);
@@ -243,35 +201,6 @@ function memberName(node) {
 		return null;
 	}
 	return String(node.property.value);
-}
-
-function memberUse(identifier, usage) {
-	let current = identifier;
-	const path = [];
-	while (current.parent?.type === "MemberExpression" && current.parent.object === current) {
-		const currentMemberSnapshot = current.parent;
-		const name = memberName(currentMemberSnapshot);
-		if (name == null) {
-			usage.whole.add(JSON.stringify(path));
-			return;
-		}
-
-		path.push(name);
-		current = currentMemberSnapshot;
-	}
-
-	if (path.length > 0) {
-		usage.whole.add(JSON.stringify(path));
-		return;
-	}
-
-	const parent = current.parent;
-	if (parent?.type === "VariableDeclarator" && parent.init === current) {
-		consumePattern(parent.id, [], usage);
-		return;
-	}
-
-	usage.whole.add(JSON.stringify([]));
 }
 
 function isInside(node, ancestor) {
@@ -285,34 +214,123 @@ function isInside(node, ancestor) {
 	return false;
 }
 
-function variableUsage(declarator, ignoredNode, sourceCode) {
-	const usage = { whole: new Set() };
-	const variable = sourceCode
+function declaredVariable(declarator, name, sourceCode) {
+	return sourceCode
 		.getDeclaredVariables(declarator)
-		.find((candidate) => candidate.name === declarator.id.name);
-	if (variable == null) {
-		usage.whole.add(JSON.stringify([]));
-		return usage;
-	}
+		.find((candidate) => candidate.name === name);
+}
 
-	for (const reference of variable.references) {
-		if (!reference.isRead() || isInside(reference.identifier, ignoredNode)) {
+function traceObjectPattern(target, path, input) {
+	for (const property of target.properties) {
+		if (property.type === "RestElement") {
+			input.usage.whole.add(JSON.stringify(path));
 			continue;
 		}
 
-		memberUse(reference.identifier, usage);
+		const name = getStaticPropertyName(property.key);
+		if (name == null) {
+			input.usage.whole.add(JSON.stringify(path));
+			continue;
+		}
+
+		tracePattern(property.value, [...path, name], input);
 	}
+}
+
+function traceArrayPattern(target, path, input) {
+	for (const [index, element] of target.elements.entries()) {
+		if (element != null) {
+			tracePattern(element, [...path, String(index)], input);
+		}
+	}
+}
+
+function tracePattern(pattern, path, input) {
+	const target = unwrapExpression(pattern);
+	if (target?.type === "AssignmentPattern") {
+		tracePattern(target.left, path, input);
+		return;
+	}
+	if (target?.type === "ObjectPattern") {
+		traceObjectPattern(target, path, input);
+		return;
+	}
+	if (target?.type === "ArrayPattern") {
+		traceArrayPattern(target, path, input);
+		return;
+	}
+	if (target?.type === "Identifier") {
+		const variable = declaredVariable(
+			input.declarator,
+			target.name,
+			input.state.sourceCode,
+		);
+		traceVariable(variable, path, input);
+		return;
+	}
+	input.usage.whole.add(JSON.stringify(path));
+}
+
+function traceReference(identifier, basePath, input) {
+	let current = identifier;
+	const path = [...basePath];
+	while (current.parent?.type === "MemberExpression" && current.parent.object === current) {
+		const memberSnapshot = current.parent;
+		const name = memberName(memberSnapshot);
+		if (name == null) {
+			input.usage.whole.add(JSON.stringify(path));
+			return;
+		}
+
+		path.push(name);
+		current = memberSnapshot;
+	}
+
+	const parent = current.parent;
+	if (parent?.type === "VariableDeclarator" && parent.init === current) {
+		tracePattern(parent.id, path, { ...input, declarator: parent });
+		return;
+	}
+	input.usage.whole.add(JSON.stringify(path));
+}
+
+function traceVariable(variable, path, input) {
+	if (variable == null) {
+		input.usage.whole.add(JSON.stringify(path));
+		return;
+	}
+
+	const traceKey = `${variable.name}:${variable.identifiers[0]?.start}:${JSON.stringify(path)}`;
+	if (input.seen.has(traceKey)) {
+		input.usage.whole.add(JSON.stringify(path));
+		return;
+	}
+	input.seen.add(traceKey);
+
+	for (const reference of variable.references) {
+		if (!reference.isRead() || isInside(reference.identifier, input.ignoredNode)) {
+			continue;
+		}
+		traceReference(reference.identifier, path, input);
+	}
+}
+
+function variableUsage(declarator, ignoredNode, state) {
+	const usage = { whole: new Set() };
+	const variable = declaredVariable(declarator, declarator.id.name, state.sourceCode);
+	traceVariable(variable, [], { ignoredNode, seen: new Set(), state, usage });
 	return usage;
 }
 
 function callUsage(input, state) {
 	const { call, value } = input;
 	const usage = { whole: new Set() };
+	const traceInput = { ignoredNode: null, seen: new Set(), state, usage };
 	const expression = unwrapExpression(value);
 	if (expression?.type === "Identifier") {
 		const declaration = state.valueDeclarators.get(expression.name);
 		if (declaration != null) {
-			return variableUsage(declaration, call, state.sourceCode);
+			return variableUsage(declaration, call, state);
 		}
 	}
 
@@ -320,12 +338,12 @@ function callUsage(input, state) {
 		const parent = call.parent;
 		if (parent?.type === "VariableDeclarator") {
 			if (parent.id.type === "Identifier") {
-				return variableUsage(parent, null, state.sourceCode);
+				return variableUsage(parent, null, state);
 			}
-			consumePattern(parent.id, [], usage);
+			tracePattern(parent.id, [], { ...traceInput, declarator: parent });
 			return usage;
 		}
-		memberUse(call, usage);
+		traceReference(call, [], traceInput);
 		return usage;
 	}
 
