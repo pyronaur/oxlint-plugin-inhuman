@@ -9,10 +9,15 @@ import {
 	unwrapExpression,
 	walkDescendants,
 } from "./ast.js";
+import {
+	traceArrayIterator,
+	traceForOfElement,
+} from "./schema-array-flow.js";
 
 const NO_UNUSED_SCHEMA_PROPERTY_MESSAGE =
 	"This private schema property is validated but its decoded value is not used.";
 const SCHEMA_WRAPPERS = new Set([
+	"Array",
 	"Decode",
 	"Optional",
 	"Readonly",
@@ -276,6 +281,17 @@ function traceReference(identifier, basePath, input) {
 	const path = [...basePath];
 	while (current.parent?.type === "MemberExpression" && current.parent.object === current) {
 		const memberSnapshot = current.parent;
+		if (
+			traceArrayIterator({
+				input,
+				member: memberSnapshot,
+				operations: { memberName, tracePattern },
+				path,
+			})
+		) {
+			return;
+		}
+
 		const name = memberName(memberSnapshot);
 		if (name == null) {
 			input.usage.whole.add(JSON.stringify(path));
@@ -289,6 +305,10 @@ function traceReference(identifier, basePath, input) {
 	const parent = current.parent;
 	if (parent?.type === "VariableDeclarator" && parent.init === current) {
 		tracePattern(parent.id, path, { ...input, declarator: parent });
+		return;
+	}
+	if (parent?.type === "ForOfStatement" && parent.right === current) {
+		traceForOfElement({ input, path, statement: parent, tracePattern });
 		return;
 	}
 	input.usage.whole.add(JSON.stringify(path));

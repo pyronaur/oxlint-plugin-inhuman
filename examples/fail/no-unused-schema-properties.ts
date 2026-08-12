@@ -66,3 +66,19 @@ const { selected: destructuredAlias } = Parse(DestructuredAliasSchema, {
 	selected: { used: "foo", ignored: "bar" },
 });
 console.log(destructuredAlias.used);
+
+const IteratorPackages = Type.Array(Type.Object({
+	source: Type.String(),
+	extensions: Type.Array(Type.String()),
+}));
+const iteratorPackages = Parse(IteratorPackages, []);
+iteratorPackages.map((entry) => entry.source);
+
+const ForOfPackages = Type.Array(Type.Object({
+	source: Type.String(),
+	extensions: Type.Array(Type.String()),
+}));
+const forOfPackages = Decode(ForOfPackages, []);
+for (const entry of forOfPackages) {
+	console.log(entry.source);
+}

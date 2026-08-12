@@ -90,6 +90,29 @@ const PublicChildSchema = Type.Object({
 });
 const PublicTypeSchema = Type.Object({ child: PublicChildSchema });
 Parse(PublicChildSchema, { publicName: "foo", publicValue: 1 });
+
+const IteratorPackages = Type.Array(Type.Object({
+	source: Type.String(),
+	extensions: Type.Array(Type.String()),
+}));
+const iteratorPackages = Parse(IteratorPackages, []);
+iteratorPackages.flatMap(({ source, extensions }) => [source, ...extensions]);
+
+const ForOfPackages = Type.Array(Type.Object({
+	source: Type.String(),
+	extensions: Type.Array(Type.String()),
+}));
+const forOfPackages = Decode(ForOfPackages, []);
+for (const { source, extensions } of forOfPackages) {
+	console.log(source, extensions);
+}
+
+const OpaquePackages = Type.Array(Type.Object({
+	source: Type.String(),
+	extensions: Type.Array(Type.String()),
+}));
+Parse(OpaquePackages, []).forEach((entry) => consume(entry));
+
 export type PublicType = Static<typeof PublicTypeSchema>;
 
 Parse(PublicSchema, { publicName: "foo", publicValue: 1 });
